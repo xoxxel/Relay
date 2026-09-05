@@ -1,0 +1,19 @@
+{
+  "name": "relay",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:desktop": "cd desktop-panel && npm run dev",
+    "dev:web": "cd web-client && npm run dev",
+    "build:web": "cd web-client && npm run build",
+    "build:desktop": "cd desktop-panel && npm run build",
+    "build:all": "npm run build:web && npm run build:desktop",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "test:backend": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
