@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod mdns;
+pub mod net;
 pub mod server;
 pub mod state;
 pub mod web_assets;

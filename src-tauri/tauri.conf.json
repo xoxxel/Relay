@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.relay.app",
   "build": {
-    "beforeDevCommand": "npm --prefix ../desktop-panel run dev",
+    "beforeDevCommand": "npm --prefix desktop-panel run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm --prefix ../desktop-panel run build",
+    "beforeBuildCommand": "npm --prefix desktop-panel run build",
     "frontendDist": "../desktop-panel/dist"
   },
   "app": {

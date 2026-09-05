@@ -6,7 +6,7 @@ use tauri::State;
 use tokio::sync::oneshot;
 
 fn build_status(inner: &crate::state::ServerInner) -> ServerStatus {
-    let lan_url = format!("http://{}:{}", inner.lan_ip, inner.port);
+    let lan_url = crate::net::format_url(&inner.lan_ip, inner.port);
     ServerStatus {
         running: inner.running,
         port: inner.port,
@@ -22,8 +22,8 @@ fn build_status(inner: &crate::state::ServerInner) -> ServerStatus {
 pub async fn get_server_status(state: State<'_, AppState>) -> Result<ServerStatus, String> {
     let mut inner = state.inner.lock().await;
     if inner.lan_ip == "127.0.0.1" {
-        if let Ok(ip) = local_ip_address::local_ip() {
-            inner.lan_ip = ip.to_string();
+        if let Some(ip) = crate::net::detect_lan_ip() {
+            inner.lan_ip = ip;
         }
     }
     Ok(build_status(&inner))
@@ -41,9 +41,7 @@ pub async fn start_server(
     }
 
     let target_port = port.unwrap_or(inner.port);
-    let lan_ip = local_ip_address::local_ip()
-        .map(|ip| ip.to_string())
-        .unwrap_or_else(|_| "127.0.0.1".to_string());
+    let lan_ip = crate::net::detect_lan_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let app_state_clone = state.inner();
