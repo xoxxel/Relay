@@ -2,3 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root { color-scheme: dark; }
+  body { background: #0b0e13; color: #e7edf3; }
+  button, input { -webkit-tap-highlight-color: transparent; }
+}
+@layer utilities {
+  .animate-float-in { animation: float-in 420ms cubic-bezier(.22,1,.36,1) both; }
+}
+@keyframes float-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.text-signal { color: #2dd4bf; }
+.bg-signal { background-color: #2dd4bf; }
+.bg-signal-hover:hover { background-color: #5eead4; }
+.bg-paper { background-color: #0b0e13; }
+.bg-surface { background-color: #11161d; }
+.bg-surface-elevated { background-color: #171e27; }
+.bg-idle-surface { background-color: #161b22; }
+.text-ink { color: #e7edf3; }
+.text-ink-secondary { color: #aab7c4; }
+.text-ink-muted { color: #718091; }
+.border-border { border-color: #25303b; }
+.border-border-subtle { border-color: #1b242e; }
+.text-red-400 { color: #fb7185; }
+.bg-red-950\/40 { background-color: rgba(76,5,25,.4); }
+.border-red-800\/40 { border-color: rgba(159,18,57,.4); }
+.text-amber-400 { color: #fbbf24; }
+.bg-signal\/10 { background-color: rgba(45,212,191,.1); }
+.bg-signal\/15 { background-color: rgba(45,212,191,.15); }
+.border-signal\/30 { border-color: rgba(45,212,191,.3); }
+.text-ink-muted\/50 { color: rgba(113,128,145,.5); }
+.text-ink-muted\/70 { color: rgba(113,128,145,.7); }
+.shadow-glow-signal { box-shadow: 0 12px 28px rgba(45,212,191,.22); }

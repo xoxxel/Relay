@@ -5,7 +5,7 @@
       @click="onOpen"
     >
       <div
-        class="w-9 h-9 rounded-xl bg-paper border border-border/80 flex items-center justify-center flex-shrink-0"
+        class="w-10 h-10 rounded-xl bg-paper border border-border/80 flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
       >
         <component
           :is="icon"
