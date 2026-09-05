@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev": "npm run dev:web",
     "dev:desktop": "cd desktop-panel && npm run dev",
     "dev:web": "cd web-client && npm run dev",
     "build:web": "cd web-client && npm run build",
