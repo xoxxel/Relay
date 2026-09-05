@@ -1,10 +1,10 @@
 <template>
   <div class="min-h-screen bg-paper text-ink flex flex-col max-w-lg mx-auto select-none">
     <!-- Header -->
-    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between">
+    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between animate-float-in">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-signal/15 border border-signal/30 flex items-center justify-center">
-          <Radio class="w-4 h-4 text-signal" />
+        <div class="w-9 h-9 rounded-xl bg-signal/15 border border-signal/30 flex items-center justify-center overflow-hidden shadow-glow-signal">
+          <img src="/relay-icon.svg" alt="Relay" class="w-7 h-7" />
         </div>
         <div>
           <h1 class="text-base font-bold tracking-tight text-ink leading-none">Relay</h1>

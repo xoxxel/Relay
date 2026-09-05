@@ -9,7 +9,7 @@
     />
 
     <button
-      class="pointer-events-auto w-14 h-14 rounded-2xl bg-signal hover:bg-signal-hover text-paper shadow-glow-signal flex items-center justify-center active:scale-90 transition-all"
+      class="pointer-events-auto w-14 h-14 rounded-2xl bg-signal hover:bg-signal-hover text-paper shadow-glow-signal flex items-center justify-center active:scale-90 hover:-translate-y-1 transition-all"
       aria-label="Upload files"
       :disabled="!!uploadProgress"
       @click="openPicker"

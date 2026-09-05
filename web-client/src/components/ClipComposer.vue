@@ -1,5 +1,5 @@
 <template>
-  <form class="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-border pb-3" @submit.prevent="submit">
+  <form class="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-border pb-3 animate-float-in" @submit.prevent="submit">
     <div class="flex gap-2">
       <input
         v-model="text"
