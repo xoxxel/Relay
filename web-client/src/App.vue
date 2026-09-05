@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-paper text-ink flex flex-col max-w-lg mx-auto p-4 sm:p-6 select-none">
+  <div class="min-h-screen bg-paper text-ink flex flex-col max-w-lg mx-auto select-none">
     <!-- Header -->
-    <header class="py-4 border-b border-border flex items-center justify-between">
+    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-signal/15 border border-signal/30 flex items-center justify-center">
           <Radio class="w-4 h-4 text-signal" />
@@ -27,161 +27,240 @@
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 py-5">
-      <!-- Section Title & Refresh -->
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <FolderClosed class="w-4 h-4 text-ink-muted" />
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
-            Shared Files
-          </h2>
+    <main class="flex-1 px-4 pb-28 pt-3">
+      <!-- Files View -->
+      <template v-if="activeTab === 'files'">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          <BreadcrumbBar />
+          <div class="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              class="p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-elevated active:scale-95 transition-all"
+              title="New folder"
+              @click="createFolder"
+            >
+              <FolderPlus class="w-4 h-4" />
+            </button>
+            <button
+              class="p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-elevated active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Refresh"
+              :disabled="loading"
+              @click="fetchFiles"
+            >
+              <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+            </button>
+          </div>
         </div>
+
+        <!-- Error State -->
+        <div
+          v-if="error"
+          class="p-3.5 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-400 mb-4 flex items-center gap-2"
+        >
+          <AlertCircle class="w-4 h-4 flex-shrink-0" />
+          <span>{{ error }}</span>
+        </div>
+
+        <!-- Empty State -->
+        <div
+          v-if="files.length === 0 && !loading"
+          class="text-center py-14 px-4 bg-surface border border-border rounded-2xl flex flex-col items-center justify-center space-y-2"
+        >
+          <div class="w-12 h-12 rounded-2xl bg-surface-elevated border border-border flex items-center justify-center text-ink-muted mb-1">
+            <FolderOpen class="w-6 h-6" />
+          </div>
+          <p class="text-sm font-medium text-ink">This folder is empty</p>
+          <p class="text-xs text-ink-muted max-w-xs">
+            Tap the upload button below to add a file here.
+          </p>
+        </div>
+
+        <!-- File List -->
+        <div
+          v-else
+          class="bg-surface border border-border rounded-2xl divide-y divide-border-subtle overflow-hidden"
+        >
+          <FileRow
+            v-for="file in files"
+            :key="file.path"
+            :file="file"
+          />
+        </div>
+      </template>
+
+      <!-- Clipboard View -->
+      <template v-else>
+        <ClipComposer />
 
         <button
-          @click="fetchFiles"
-          :disabled="loading"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-ink-secondary hover:text-ink bg-surface border border-border rounded-lg transition-all active:scale-95 disabled:opacity-50"
+          class="mt-3 flex items-center gap-2 text-[11px] text-ink-muted bg-surface border border-border rounded-xl px-3 py-2"
+          @click="changeDeviceName"
         >
-          <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loading }" />
-          <span>{{ loading ? 'Updating...' : 'Refresh' }}</span>
+          <Smartphone class="w-3.5 h-3.5 text-ink-muted" />
+          <span>
+            Sending as
+            <span class="text-ink-secondary font-medium select-text">{{ deviceName }}</span>
+          </span>
+          <Pencil class="w-3 h-3 ml-auto text-ink-muted/70" />
         </button>
-      </div>
 
-      <!-- Error State -->
-      <div
-        v-if="error"
-        class="p-3.5 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-400 mb-4 flex items-center gap-2"
-      >
-        <AlertCircle class="w-4 h-4 flex-shrink-0" />
-        <span>{{ error }}</span>
-      </div>
-
-      <!-- Empty State -->
-      <div
-        v-if="files.length === 0 && !loading"
-        class="text-center py-14 px-4 bg-surface border border-border rounded-2xl flex flex-col items-center justify-center space-y-2"
-      >
-        <div class="w-12 h-12 rounded-2xl bg-surface-elevated border border-border flex items-center justify-center text-ink-muted mb-1">
-          <FolderOpen class="w-6 h-6" />
-        </div>
-        <p class="text-sm font-medium text-ink">This folder is empty</p>
-        <p class="text-xs text-ink-muted max-w-xs">
-          Files added to the shared folder on host device will appear here instantly.
-        </p>
-      </div>
-
-      <!-- File List -->
-      <div
-        v-else-if="files.length > 0"
-        class="bg-surface border border-border rounded-2xl divide-y divide-border-subtle overflow-hidden shadow-sm"
-      >
+        <!-- Empty State -->
         <div
-          v-for="file in files"
-          :key="file.path"
-          class="p-3.5 flex items-center justify-between hover:bg-surface-elevated/60 transition-colors"
+          v-if="clips.length === 0"
+          class="text-center py-14 px-4 bg-surface border border-border rounded-2xl flex flex-col items-center space-y-2 mt-3"
         >
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-xl bg-paper border border-border/80 flex items-center justify-center flex-shrink-0">
-              <component
-                :is="getFileIcon(file)"
-                class="w-4 h-4"
-                :class="file.is_dir ? 'text-amber-400' : 'text-signal'"
-              />
-            </div>
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-ink truncate select-text">{{ file.name }}</p>
-              <p class="text-[10px] text-ink-muted font-mono mt-0.5">
-                {{ file.is_dir ? 'Folder' : formatSize(file.size_bytes) }}
-              </p>
+          <div class="w-12 h-12 rounded-2xl bg-surface-elevated border border-border flex items-center justify-center text-ink-muted mb-1">
+            <ClipboardList class="w-6 h-6" />
+          </div>
+          <p class="text-sm font-medium text-ink">Clipboard is empty</p>
+          <p class="text-xs text-ink-muted max-w-xs">
+            Text you send from any connected device appears here instantly.
+          </p>
+        </div>
+
+        <!-- Clip List -->
+        <div
+          v-else
+          class="mt-3 bg-surface border border-border rounded-2xl divide-y divide-border-subtle overflow-hidden"
+        >
+          <div
+            v-for="clip in clips"
+            :key="clip.id"
+            class="px-4 py-3 cursor-pointer hover:bg-surface-elevated/60 transition-colors"
+            @click="copyText(clip.content)"
+          >
+            <div class="flex items-start gap-3">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm text-ink leading-snug select-text whitespace-pre-wrap break-words">
+                  {{ clip.content }}
+                </p>
+                <p class="flex items-center gap-1.5 text-[10px] text-ink-muted mt-1.5">
+                  <UserRound class="w-3 h-3 flex-shrink-0" />
+                  <span class="truncate">{{ clip.device_label }}</span>
+                  <span class="text-ink-muted/50">•</span>
+                  <span>{{ timeAgo(clip.created_at) }}</span>
+                </p>
+              </div>
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <button
+                  class="p-1.5 rounded-lg text-ink-muted/70 hover:text-signal hover:bg-signal/10 active:scale-95 transition-all"
+                  title="Copy to this device"
+                  @click.stop="copyText(clip.content)"
+                >
+                  <Copy class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  class="p-1.5 rounded-lg text-ink-muted/70 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                  title="Delete"
+                  @click.stop="deleteClip(clip.id)"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
-
-          <span class="text-[10px] text-ink-muted font-mono flex-shrink-0 pl-2">
-            {{ formatDate(file.modified_at) }}
-          </span>
         </div>
-      </div>
+      </template>
     </main>
 
-    <!-- Footer -->
-    <footer class="py-3 text-center border-t border-border-subtle text-[11px] text-ink-muted">
-      <span>Relay Local Network Client</span>
-    </footer>
+    <!-- Bottom Tab Bar -->
+    <nav
+      class="fixed bottom-0 inset-x-0 z-30 bg-paper/95 backdrop-blur border-t border-border"
+    >
+      <div class="max-w-lg mx-auto px-4 py-2 grid grid-cols-2 gap-1">
+        <button
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+          :class="activeTab === 'files'
+            ? 'bg-signal/10 text-signal'
+            : 'text-ink-muted hover:text-ink'"
+          @click="setTab('files')"
+        >
+          <FolderClosed class="w-4 h-4" />
+          Files
+        </button>
+        <button
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+          :class="activeTab === 'clipboard'
+            ? 'bg-signal/10 text-signal'
+            : 'text-ink-muted hover:text-ink'"
+          @click="setTab('clipboard')"
+        >
+          <ClipboardList class="w-4 h-4" />
+          Clipboard
+          <span
+            v-if="clips.length"
+            class="min-w-[16px] h-4 px-1 rounded-full bg-surface-elevated border border-border text-[9px] text-ink-secondary flex items-center justify-center"
+          >
+            {{ clips.length }}
+          </span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Upload Floating Button (Files tab only) -->
+    <UploadFab v-if="activeTab === 'files'" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import {
   Radio,
   FolderClosed,
   FolderOpen,
-  Folder,
-  FileText,
-  FileImage,
-  FileCode,
-  FileMusic,
-  File,
+  FolderPlus,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ClipboardList,
+  Copy,
+  Trash2,
+  Smartphone,
+  Pencil,
+  UserRound,
 } from 'lucide-vue-next';
+import BreadcrumbBar from './components/BreadcrumbBar.vue';
+import FileRow from './components/FileRow.vue';
+import UploadFab from './components/UploadFab.vue';
+import ClipComposer from './components/ClipComposer.vue';
+import {
+  files,
+  clips,
+  activeTab,
+  loading,
+  error,
+  connected,
+  init,
+  fetchFiles,
+  createFolder,
+  deleteClip,
+  copyText,
+  deviceLabel,
+  setDeviceLabel,
+} from './relay';
 
-const files = ref([]);
-const loading = ref(false);
-const connected = ref(false);
-const error = ref(null);
+const deviceName = computed(() => deviceLabel());
 
-async function fetchFiles() {
-  loading.value = true;
-  error.value = null;
-  try {
-    const res = await fetch('/api/files?path=');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    files.value = Array.isArray(data) ? data : [];
-    connected.value = true;
-  } catch (err) {
-    error.value = 'Failed to connect to Relay server: ' + (err.message || err);
-    connected.value = false;
-  } finally {
-    loading.value = false;
+function setTab(tab) {
+  activeTab.value = tab;
+}
+
+function changeDeviceName() {
+  const name = window.prompt('Device name shown to others', deviceName.value);
+  if (name) {
+    setDeviceLabel(name);
+    deviceName.value = deviceLabel();
   }
 }
 
-function getFileIcon(file) {
-  if (file.is_dir) return Folder;
-  const mime = file.mime_type || '';
-  if (mime.startsWith('image/')) return FileImage;
-  if (mime.startsWith('audio/')) return FileMusic;
-  if (mime.includes('json') || mime.includes('javascript') || mime.includes('html')) return FileCode;
-  if (mime.startsWith('text/') || mime.includes('pdf')) return FileText;
-  return File;
-}
-
-function formatSize(bytes) {
-  if (!bytes) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let i = 0;
-  let size = bytes;
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024;
-    i++;
-  }
-  return `${size.toFixed(1)} ${units[i]}`;
-}
-
-function formatDate(iso) {
+function timeAgo(iso) {
   if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
-      d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} hr ago`;
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 onMounted(() => {
-  fetchFiles();
+  init();
 });
 </script>

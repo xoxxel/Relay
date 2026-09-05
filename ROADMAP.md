@@ -43,18 +43,18 @@
 
 **هدف:** فایل‌منیجر وب کامل با امنیت مسیر و آپلود/دانلود.
 
-- [ ] کامل کردن روت‌های فایل در `server/routes_files.rs`:
-  - [ ] `GET /api/files` (لیست، سورت، نمایش size/mtime/mime)
-  - [ ] `POST /api/files/upload` (multipart، محدودیت حجم طبق بخش ۱۱)
-  - [ ] `GET /api/files/download` (stream)
-  - [ ] `POST /api/files/mkdir`
-  - [ ] `DELETE /api/files`
-- [ ] پیاده‌سازی **Path Safety** (بخش ۶): نرمالایز + canonicalize + رد 403 برای خروج از ریشه
-- [ ] اضافه کردن middleware امنیتی (بخش ۱۱): فیلتر `Host`/CORS محدود به subnet — در نسخه‌ی اول no-op برای PIN
-- [ ] `web-client`:
-  - [ ] `FilesView.vue` + `BreadcrumbBar.vue` + `FileRow.vue`
-  - [ ] `UploadFab.vue` و فلوی آپلود چند فایل
-  - [ ] دانلود فایل + ساخت پوشه + حذف
+- [x] کامل کردن روت‌های فایل در `server/routes_files.rs`:
+  - [x] `GET /api/files` (لیست، سورت، نمایش size/mtime/mime)
+  - [x] `POST /api/files/upload` (multipart، محدودیت حجم طبق بخش ۱۱)
+  - [x] `GET /api/files/download` (stream)
+  - [x] `POST /api/files/mkdir`
+  - [x] `DELETE /api/files`
+- [x] پیاده‌سازی **Path Safety** (بخش ۶): نرمالایز + canonicalize + رد 403 برای خروج از ریشه
+- [x] اضافه کردن middleware امنیتی (بخش ۱۱): فیلتر `Host`/CORS محدود به subnet — در نسخه‌ی اول no-op برای PIN
+- [x] `web-client`:
+  - [x] `FilesView.vue` + `BreadcrumbBar.vue` + `FileRow.vue`
+  - [x] `UploadFab.vue` و فلوی آپلود چند فایل
+  - [x] دانلود فایل + ساخت پوشه + حذف
 
 **معیار آمادگی:** آپلود، دانلود، ساخت پوشه و حذف روی داده‌های واقعی کار کند؛ تلاش برای Path Traversal با 403 رد شود.
 
@@ -64,10 +64,10 @@
 
 **هدف:** به‌روزرسانی لحظه‌ای بدون رفرش برای همه‌ی کلاینت‌ها.
 
-- [ ] `server/ws.rs`: اتصال `/ws` با broadcast channel (`tokio::sync::broadcast`)
-- [ ] broadcast رویدادهای `file_added` / `file_removed` از روی روت‌های فایل
-- [ ] اتصال `web-client` به `/ws` (`useWebSocket`) و آپدیت خودکار لیست
-- [ ] اتصال `desktop-panel` به `/ws` برای نمایش فعالیت‌ها (`ActivityFeed.vue`)
+- [x] `server/ws.rs`: اتصال `/ws` با broadcast channel (`tokio::sync::broadcast`)
+- [x] broadcast رویدادهای `file_added` / `file_removed` از روی روت‌های فایل
+- [x] اتصال `web-client` به `/ws` (`useWebSocket`) و آپدیت خودکار لیست
+- [x] اتصال `desktop-panel` به `/ws` برای نمایش فعالیت‌ها (`ActivityFeed.vue`)
 
 **معیار آمادگی:** آپلود از یک موبایل، در کمتر از ۲ ثانیه بدون رفرش روی پنل دسکتاپ و سایر موبایل‌ها ظاهر شود.
 
@@ -77,14 +77,14 @@
 
 **هدف:** ارسال زنده‌ی متن بین همه‌ی دیوایس‌ها + تاریخچه در SQLite.
 
-- [ ] `db.rs`: ایجاد و migration جدول `clip_items` با `rusqlite`
-- [ ] روت‌های `/api/clips`:
-  - [ ] `GET /api/clips` (۵۰ آیتم آخر)
-  - [ ] `POST /api/clips` (ذخیره + broadcast `clip_added`)
-  - [ ] `DELETE /api/clips/:id` (حذف + broadcast `clip_removed`)
-- [ ] `ClipComposer.vue` در `web-client` (دمای sticky در `ClipboardView.vue`)
-- [ ] `ClipboardPanel.vue` در `desktop-panel`
-- [ ] `copy_to_system_clipboard` (پلاگین `tauri-plugin-clipboard-manager`) با کلیک روی آیتم در پنل دسکتاپ
+- [x] `db.rs`: ایجاد و migration جدول `clip_items` با `rusqlite`
+- [x] روت‌های `/api/clips`:
+  - [x] `GET /api/clips` (۵۰ آیتم آخر)
+  - [x] `POST /api/clips` (ذخیره + broadcast `clip_added`)
+  - [x] `DELETE /api/clips/:id` (حذف + broadcast `clip_removed`)
+- [x] `ClipComposer.vue` در `web-client` (دمای sticky در `ClipboardView.vue`)
+- [x] `ClipboardPanel.vue` در `desktop-panel`
+- [x] `copy_to_system_clipboard` (پلاگین `tauri-plugin-clipboard-manager`) با کلیک روی آیتم در پنل دسکتاپ
 
 **معیار آمادگی:** ارسال متن از موبایل، همان لحظه در پنل دسکتاپ و موبایل‌های متصل دیده شود؛ کلیک روی آیتم در دسکتاپ متن را در کلیپ‌بورد سیستم مینت کپی کند؛ بعد از ری‌استارت اپ، تاریخچه حفظ شده باشد.
 
@@ -94,11 +94,11 @@
 
 **هدف:** اتصال موبایل بدون تایپ دستی آدرس.
 
-- [ ] `mdns.rs`: ثبت `lanshare.local` با `mdns-sd` هنگام start و حذف هنگام stop
-- [ ] `ConnectionCard.vue`: نمایش QR (`qrcode.vue`) + آدرس + دکمه‌ی کپی سریع آدرس
-- [ ] نمایش کارت فقط هنگام روشن بودن سرور (fade+scale ~۲۰۰ms طبق بخش ۹)
-- [ ] `FolderPicker.vue` + `pick_shared_folder` (دیالوگ بومی) + ذخیره در تنظیمات (`tauri-plugin-store`)
-- [ ] `get_settings` / `save_settings` (پورت، پوشه، نام دستگاه)
+- [x] `mdns.rs`: ثبت `lanshare.local` با `mdns-sd` هنگام start و حذف هنگام stop
+- [x] `ConnectionCard.vue`: نمایش QR (`qrcode.vue`) + آدرس + دکمه‌ی کپی سریع آدرس
+- [x] نمایش کارت فقط هنگام روشن بودن سرور (fade+scale ~۲۰۰ms طبق بخش ۹)
+- [x] `FolderPicker.vue` + `pick_shared_folder` (دیالوگ بومی) + ذخیره در تنظیمات (`tauri-plugin-store`)
+- [x] `get_settings` / `save_settings` (پورت، پوشه، نام دستگاه)
 
 **معیار آمادگی:** اسکن QR مستقیماً به فایل‌منیجر وب برسد؛ `lanshare.local` (یا معادل IP در صورت عدم پشتیبانی) کار کند؛ تغییر پوشه‌ی اشتراکی از تنظیمات اعمال شود.
 
@@ -108,9 +108,9 @@
 
 **هدف:** ظاهر مطابق بخش ۹ + تست واقعی + بسته‌ی نصبی.
 
-- [ ] پیاده‌سازی کامل سیستم طراحی: پالت رنگ (Paper/Surface/Border/Ink/Signal/Idle)، فونت Inter + JetBrains Mono (فقط داده‌های فنی)
-- [ ] اجرای دقیق چیدمان پنل دسکتاپ و web-client از بخش ۹ (Toggle بزرگ به‌عنوان المان اصلی، بدون کارت‌های تکراری)
-- [ ] حالت‌های خالی و خطا با متن راهنما (مثلاً «این پوشه خالیه — یه فایل از پایین اضافه کن»)
+- [x] پیاده‌سازی کامل سیستم طراحی: پالت رنگ (Paper/Surface/Border/Ink/Signal/Idle)، فونت Inter + JetBrains Mono (فقط داده‌های فنی)
+- [x] اجرای دقیق چیدمان پنل دسکتاپ و web-client از بخش ۹ (Toggle بزرگ به‌عنوان المان اصلی، بدون کارت‌های تکراری)
+- [x] حالت‌های خالی و خطا با متن راهنما (مثلاً «این پوشه خالیه — یه فایل از پایین اضافه کن»)
 - [ ] `prefers-reduced-motion` و focus state قابل مشاهده
 - [ ] تست روی یک موبایل اندروید واقعی در همان شبکه‌ی وای‌فای
 - [ ] تست خاموش‌کردن toggle و عدم دسترسی موبایل‌ها بعد از آن

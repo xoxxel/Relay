@@ -1,4 +1,6 @@
 pub mod commands;
+pub mod db;
+pub mod mdns;
 pub mod server;
 pub mod state;
 pub mod web_assets;
@@ -14,8 +16,11 @@ pub fn run() {
             commands::get_server_status,
             commands::start_server,
             commands::stop_server,
+            commands::pick_shared_folder,
+            commands::copy_to_system_clipboard,
+            commands::get_settings,
+            commands::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
