@@ -36,6 +36,10 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },
+      boxShadow: {
+        'glow-signal': '0 0 24px rgba(16, 185, 129, 0.25)',
+        'glow-subtle': '0 0 15px rgba(255, 255, 255, 0.03)',
+      },
     },
   },
   plugins: [],

@@ -7,71 +7,11 @@
   body {
     user-select: none;
     -webkit-user-select: none;
-    background: #0b0e13;
-    background-image: radial-gradient(circle at 50% -20%, rgba(45, 212, 191, 0.08), transparent 42%);
+    background: #0a0a0c;
+    -webkit-tap-highlight-color: transparent;
   }
-  button { -webkit-tap-highlight-color: transparent; }
 }
 
-<<<<<<< HEAD
-@layer utilities {
-  .animate-float-in { animation: float-in 500ms cubic-bezier(.22,1,.36,1) both; }
-  .animate-float-in-delay { animation: float-in 500ms 90ms cubic-bezier(.22,1,.36,1) both; }
-  .animate-float-in-delay-2 { animation: float-in 500ms 160ms cubic-bezier(.22,1,.36,1) both; }
-}
-
-@keyframes float-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-
-@layer components {
-  .relay-mark { box-shadow: 0 0 0 1px rgba(45,212,191,.12), 0 8px 24px rgba(45,212,191,.08); }
-}
-
-@layer utilities {
-  .shadow-glow-signal { box-shadow: 0 0 0 1px rgba(45,212,191,.32), 0 12px 32px rgba(45,212,191,.18); }
-}
-
-@layer base {
-  body { color: #e7edf3; }
-}
-
-/* Keep QR codes crisp against the dark surfaces. */
-.qr-shell svg { display: block; }
-.chunky-toggle { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 14px 35px rgba(0,0,0,.28); }
-.chunky-toggle.is-on { box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 0 0 5px rgba(45,212,191,.08), 0 14px 35px rgba(45,212,191,.2); }
-.chunky-toggle-knob { box-shadow: 0 4px 12px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.14); }
-@keyframes status-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(45,212,191,.38); } 50% { box-shadow: 0 0 0 6px rgba(45,212,191,0); } }
-.status-pulse { animation: status-pulse 2s ease-out infinite; }
-
-@media (prefers-reduced-motion: reduce) { .status-pulse { animation: none; } }
-
-/* Shared semantic palette supplied by the existing Tailwind config. */
-.text-signal { color: #2dd4bf; }
-.bg-signal { background-color: #2dd4bf; }
-.bg-signal-hover:hover { background-color: #5eead4; }
-.bg-paper { background-color: #0b0e13; }
-.bg-surface { background-color: #11161d; }
-.bg-surface-elevated { background-color: #171e27; }
-.bg-idle-surface { background-color: #161b22; }
-.text-ink { color: #e7edf3; }
-.text-ink-secondary { color: #aab7c4; }
-.text-ink-muted { color: #718091; }
-.border-border { border-color: #25303b; }
-.border-border-subtle { border-color: #1b242e; }
-.text-red-400 { color: #fb7185; }
-.bg-red-950\/40 { background-color: rgba(76, 5, 25, .4); }
-.border-red-800\/50 { border-color: rgba(159, 18, 57, .5); }
-.text-amber-400 { color: #fbbf24; }
-.bg-white { background-color: #fff; }
-.text-paper { color: #0b0e13; }
-.bg-paper\/95 { background-color: rgba(11,14,19,.95); }
-.bg-signal\/10 { background-color: rgba(45,212,191,.1); }
-.bg-signal\/15 { background-color: rgba(45,212,191,.15); }
-.border-signal\/30 { border-color: rgba(45,212,191,.3); }
-.border-signal\/60 { border-color: rgba(45,212,191,.6); }
-.text-ink-muted\/50 { color: rgba(113,128,145,.5); }
-.text-ink-muted\/70 { color: rgba(113,128,145,.7); }
-=======
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -82,4 +22,3 @@
     scroll-behavior: auto !important;
   }
 }
->>>>>>> 34ca5f1 (feat: UI updates, new icons, fix tauri path)

@@ -1,15 +1,9 @@
 <template>
   <div class="min-h-screen bg-paper text-ink flex flex-col max-w-lg mx-auto select-none">
     <!-- Header -->
-    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between animate-float-in">
+    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-<<<<<<< HEAD
-        <div class="w-9 h-9 rounded-xl bg-signal/15 border border-signal/30 flex items-center justify-center overflow-hidden shadow-glow-signal">
-          <img src="/relay-icon.svg" alt="Relay" class="w-7 h-7" />
-        </div>
-=======
-        <img :src="relayLogo" class="w-7 h-7 opacity-90" alt="" draggable="false" />
->>>>>>> 34ca5f1 (feat: UI updates, new icons, fix tauri path)
+        <img src="/relay-icon.svg" alt="Relay" class="w-7 h-7 opacity-90" draggable="false" />
         <div>
           <h1 class="text-base font-bold tracking-tight text-ink leading-none">Relay</h1>
           <p class="text-[11px] text-ink-muted mt-0.5">Local Network Share</p>
@@ -220,7 +214,6 @@ import {
   Pencil,
   UserRound,
 } from 'lucide-vue-next';
-import relayLogo from './assets/relay-icon.svg';
 import BreadcrumbBar from './components/BreadcrumbBar.vue';
 import FileRow from './components/FileRow.vue';
 import UploadFab from './components/UploadFab.vue';
