@@ -8,19 +8,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#0B0E14',
+        paper: '#0A0A0C',
         surface: {
-          DEFAULT: '#141721',
-          elevated: '#1C202C',
+          DEFAULT: '#121215',
+          elevated: '#1A1B20',
         },
         border: {
-          DEFAULT: '#252B3B',
-          subtle: '#1B202D',
+          DEFAULT: '#26272D',
+          subtle: '#18181C',
         },
         ink: {
-          DEFAULT: '#F9FAFB',
-          secondary: '#9CA3AF',
-          muted: '#6B7280',
+          DEFAULT: '#F2F3F5',
+          secondary: '#A2A6AE',
+          muted: '#6E737A',
         },
         signal: {
           DEFAULT: '#10B981',
@@ -28,8 +28,8 @@ export default {
           glow: 'rgba(16, 185, 129, 0.15)',
         },
         idle: {
-          DEFAULT: '#374151',
-          surface: '#1F2430',
+          DEFAULT: '#2C2D33',
+          surface: '#14151A',
         },
       },
       fontFamily: {

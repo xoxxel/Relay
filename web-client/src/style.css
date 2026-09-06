@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+<<<<<<< HEAD
 @layer base {
   :root { color-scheme: dark; }
   body { background: #0b0e13; color: #e7edf3; }
@@ -34,3 +35,16 @@
 .text-ink-muted\/50 { color: rgba(113,128,145,.5); }
 .text-ink-muted\/70 { color: rgba(113,128,145,.7); }
 .shadow-glow-signal { box-shadow: 0 12px 28px rgba(45,212,191,.22); }
+=======
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+>>>>>>> 34ca5f1 (feat: UI updates, new icons, fix tauri path)

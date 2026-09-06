@@ -1,5 +1,6 @@
 <template>
   <main class="min-h-screen bg-paper text-ink flex flex-col items-center justify-between p-6 max-w-md mx-auto">
+<<<<<<< HEAD
     <header class="w-full flex items-center justify-between pt-1 mb-2 animate-float-in">
       <div class="flex items-center gap-3">
         <div class="relay-mark w-9 h-9 rounded-xl bg-signal/15 border border-signal/30 flex items-center justify-center overflow-hidden">
@@ -9,6 +10,13 @@
           <h1 class="text-lg font-bold tracking-tight text-ink leading-none">Relay</h1>
           <p class="text-[11px] text-ink-muted mt-1">Private sharing, locally.</p>
         </div>
+=======
+    <!-- Header -->
+    <header class="w-full text-center pt-2 mb-2">
+      <div class="inline-flex items-center gap-2.5 mb-2">
+        <img :src="relayLogo" class="w-8 h-8 opacity-90" alt="" draggable="false" />
+        <h1 class="text-2xl font-bold tracking-tight text-ink">Relay</h1>
+>>>>>>> 34ca5f1 (feat: UI updates, new icons, fix tauri path)
       </div>
       <span class="text-[10px] font-mono text-ink-muted border border-border rounded-full px-2 py-1">v0.1</span>
     </header>
@@ -39,6 +47,10 @@
 <script setup>
 import { onMounted } from 'vue';
 import { Folder, Server, Wifi } from 'lucide-vue-next';
+<<<<<<< HEAD
+=======
+import relayLogo from './assets/relay-icon.svg';
+>>>>>>> 34ca5f1 (feat: UI updates, new icons, fix tauri path)
 import ServerToggle from './components/ServerToggle.vue';
 import ConnectionCard from './components/ConnectionCard.vue';
 import { useServerStore } from './stores/serverStore';
