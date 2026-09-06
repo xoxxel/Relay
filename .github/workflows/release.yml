@@ -8,23 +8,29 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-and-release:
+  publish:
+    name: Build & Publish
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install system dependencies
+      - name: Install Linux system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -32,29 +38,24 @@ jobs:
             libgtk-3-dev \
             librsvg2-dev \
             patchelf \
-            build-essential \
-            libssl-dev \
             libxdo-dev \
             libayatana-appindicator3-dev
 
-      - name: Install Node dependencies
+      - name: Install JS dependencies
         run: |
-          npm install
-          npm --prefix desktop-panel install
-          npm --prefix web-client install
+          npm ci
+          npm --prefix desktop-panel ci
+          npm --prefix web-client ci
 
-      - name: Build Vue bundles
-        run: npm run build:all
+      # web-client/dist must exist before cargo build, because it is embedded via rust-embed
+      - name: Build web-client (embedded into binary)
+        run: npm run build:web
 
-      - name: Build Tauri app
-        run: npm run tauri:build
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Build app bundles and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          files: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage
+          tagName: v__VERSION__
+          releaseName: Relay v__VERSION__
+          # tauri-action auto-generates a changelog from the git log since the last tag

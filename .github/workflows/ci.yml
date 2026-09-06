@@ -4,25 +4,30 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  test:
+    name: Test & Build
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install system dependencies
+      - name: Install Linux system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -30,19 +35,17 @@ jobs:
             libgtk-3-dev \
             librsvg2-dev \
             patchelf \
-            build-essential \
-            libssl-dev \
             libxdo-dev \
             libayatana-appindicator3-dev
 
-      - name: Install Node dependencies
+      - name: Install JS dependencies
         run: |
-          npm install
-          npm --prefix desktop-panel install
-          npm --prefix web-client install
+          npm ci
+          npm --prefix desktop-panel ci
+          npm --prefix web-client ci
 
-      - name: Build Vue bundles
+      - name: Build both frontends
         run: npm run build:all
 
-      - name: Run backend tests
-        run: npm run test:backend
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
