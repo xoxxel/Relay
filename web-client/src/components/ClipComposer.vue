@@ -5,7 +5,7 @@
         v-model="text"
         type="text"
         inputmode="text"
-        placeholder="بعدی میخوای چي ببری؟"
+        placeholder="Type something to share..."
         class="flex-1 min-w-0 bg-surface border border-border rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted/70 focus:outline-none focus:border-signal/60 focus:ring-2 focus:ring-signal/20 transition-all"
         @keydown.meta.enter="submit"
         @keydown.ctrl.enter="submit"

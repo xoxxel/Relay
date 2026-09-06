@@ -1,99 +1,213 @@
+<div align="center">
+
+<img src="relay-icon-1024.svg" alt="Relay Logo" width="96" />
+
 # Relay
 
-A minimal, ultra-fast, and secure **Local Network File & Live Clipboard Sharing** desktop application. Share files and sync clipboard in real-time across your local Wi-Fi network without requiring internet access or installing any app on mobile devices.
+**Minimal, ultra-fast local-network file & clipboard sharing — no internet, no app install.**
+
+[![Tauri v2](https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri&logoColor=white)](https://tauri.app)
+[![Vue 3](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js&logoColor=white)](https://vuejs.org)
+[![Rust](https://img.shields.io/badge/Rust-2021-CE4A00?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/xoxxel/Relay?color=6E56CF)](https://github.com/xoxxel/Relay/releases)
+
+</div>
 
 ---
 
-## ✨ Key Characteristics
+## Overview
 
-- **Name**: Relay
-- **Theme**: Sleek Dark Theme (`#0B0E14` obsidian canvas, `#141721` elevated surface, emerald signal glow).
-- **Language**: English (LTR), minimal, modern typography and clean iconography.
-- **Responsive**: Adaptive layouts tailored for both desktop control panel and mobile web clients.
+**Relay** is a lightweight desktop application that turns your computer into a local file server and shared clipboard hub. Once the server is running, any device on the same Wi-Fi — phone, tablet, laptop — can browse, upload, and download files or read/write the shared clipboard through a plain browser. No app installation, no cloud account, no internet connection required.
 
 ---
 
-## 🚀 Progress & Roadmap
+## Key Features
 
-- [x] **Phase 0 — Project Scaffold**: Tauri v2, Vue 3, Vite, Tailwind CSS (Dark Mode), Pinia, and `rust-embed`.
-- [x] **Phase 1 — Core Server & IPC**: Axum HTTP server with Tokio background task, graceful shutdown, Path Traversal safety protection, English dark theme UI with live toggle and QR Code connection card.
-- [ ] **Phase 2 — File Manager**: Multipart multi-file upload, streaming download, directory creation & deletion.
-- [ ] **Phase 3 — Real-Time WebSocket**: Live updates across all connected devices without page refresh.
-- [ ] **Phase 4 — Shared Live Clipboard**: Instant text broadcast with SQLite persistent history.
-- [ ] **Phase 5 — Discovery & Native Controls**: mDNS broadcasting (`relay.local`), native directory picker, persistent settings.
-- [ ] **Phase 6 — Final Polish & Packaging**: System tray integration, `.deb`/AppImage builds.
+- 🚀 **One-click server** — toggle the HTTP/WebSocket server on and off from the desktop panel with a single button click.
+- 📱 **Instant mobile access** — a QR code appears the moment the server starts; scan it with your phone camera to open the web UI immediately.
+- 📁 **Full file manager** — browse directories, create folders, upload multiple files (multipart), and stream downloads — all from the browser.
+- 📋 **Live shared clipboard** — paste on your laptop, read on your phone (and vice versa) in real time, persisted in an embedded SQLite database.
+- 🔄 **Real-time updates** — file and clipboard changes are pushed to all connected clients over WebSocket; no manual refresh needed.
+- 🔒 **Path traversal protection** — every file-system path is canonicalized and validated against the configured root before serving.
+- 📡 **mDNS broadcasting** — the service is announced as `relay.local` so devices on the same network can discover it automatically.
+- 🗂️ **Persistent settings** — chosen share folder is remembered across sessions via `tauri-plugin-store`.
+- 🎨 **Obsidian dark theme** — clean, distraction-free dark UI for both the desktop panel and the mobile web client.
 
 ---
 
-## 💻 How to Run & Test
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Desktop (Relay app)                                 │
+│                                                      │
+│  1. Pick a folder  →  2. Toggle server ON            │
+│                              │                       │
+│                     Axum HTTP + WebSocket             │
+│                     server starts on :4444           │
+│                              │                       │
+│  3. QR code appears  ←  Local IP detected            │
+└──────────────────────────────┬───────────────────────┘
+                               │  Local Wi-Fi
+                    ┌──────────▼──────────┐
+                    │  Mobile / Browser   │
+                    │                     │
+                    │  4. Scan QR code    │
+                    │  5. Browser opens   │
+                    │     web-client UI   │
+                    │                     │
+                    │  • Browse files     │
+                    │  • Upload / Download│
+                    │  • Shared clipboard │
+                    └─────────────────────┘
+```
+
+| Step | Action |
+|------|--------|
+| **1** | Open Relay and choose the folder you want to share using the native folder picker. |
+| **2** | Click **Start Server** — Relay starts an Axum HTTP + WebSocket server on port `4444` and begins broadcasting the service over mDNS. |
+| **3** | A QR code containing the server's local IP address appears in the desktop panel. Tap **Copy** to copy the URL to your clipboard. |
+| **4** | Scan the QR code with your phone camera (or paste the URL into any browser). |
+| **5** | The mobile-optimised web client loads fully from the embedded server — browse folders, upload files, or use the shared clipboard, all in real time. |
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Desktop shell | [Tauri v2](https://tauri.app) | Native window, IPC, OS integrations |
+| Desktop UI | [Vue 3](https://vuejs.org) + [Vite](https://vitejs.dev) + Tailwind CSS | Reactive desktop control panel |
+| Web client UI | [Vue 3](https://vuejs.org) + [Vite](https://vitejs.dev) + Tailwind CSS | Mobile-friendly browser file manager |
+| HTTP server | [Axum 0.8](https://github.com/tokio-rs/axum) + [Tokio](https://tokio.rs) | Async HTTP, multipart upload, streaming download |
+| WebSocket | Axum `ws` feature | Real-time push events to all clients |
+| Static embedding | [rust-embed](https://github.com/pyros2097/rust-embed) | Bundle web-client dist into the binary |
+| Database | [SQLite](https://www.sqlite.org) via `rusqlite` (bundled) | Clipboard persistence |
+| Service discovery | [mdns-sd](https://github.com/keepsimple1/mdns-sd) | Announce `relay.local` on the LAN |
+| Clipboard access | [arboard](https://github.com/1Password/arboard) | Read/write system clipboard |
+| File dialogs | [rfd](https://github.com/PolyMeilex/rfd) | Native folder picker |
+| Settings | tauri-plugin-store | Persist user preferences |
+
+---
+
+## Repository Structure
+
+```
+Relay/
+├── desktop-panel/          # Vue 3 desktop control-panel UI
+│   ├── src/
+│   │   ├── components/     # ServerCard, QRCard, FilePanel, ClipboardPanel …
+│   │   ├── stores/         # Pinia stores
+│   │   └── App.vue
+│   └── vite.config.js
+│
+├── web-client/             # Vue 3 mobile browser UI (served by Axum)
+│   ├── src/
+│   │   ├── components/     # FileList, Uploader, ClipboardView …
+│   │   ├── relay.js        # Relay API + WebSocket client
+│   │   └── App.vue
+│   └── vite.config.js
+│
+├── src-tauri/              # Rust / Tauri backend
+│   ├── src/
+│   │   ├── server/
+│   │   │   ├── mod.rs          # Router assembly, server lifecycle
+│   │   │   ├── routes_files.rs # File-manager endpoints
+│   │   │   ├── routes_clip.rs  # Clipboard endpoints
+│   │   │   └── ws.rs           # WebSocket broadcast hub
+│   │   ├── commands.rs     # Tauri IPC commands (start/stop/status …)
+│   │   ├── state.rs        # AppState shared across async tasks
+│   │   ├── db.rs           # SQLite initialisation & queries
+│   │   ├── mdns.rs         # mDNS service registration
+│   │   ├── net.rs          # Local IP detection utilities
+│   │   └── web_assets.rs   # rust-embed asset handler
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+│
+├── install.sh              # Interactive build & install script
+├── package.json            # Workspace scripts
+└── README.md
+```
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18+
-- **Rust & Cargo**: v1.80+
 
----
+| Tool | Version |
+|------|---------|
+| [Rust](https://rustup.rs) | 1.77+ (stable) |
+| [Node.js](https://nodejs.org) | 18+ |
+| [Tauri CLI](https://tauri.app/v1/guides/getting-started/prerequisites) | v2 (`cargo install tauri-cli`) |
 
-### 1. Launch Full Desktop Application (Tauri)
-
-Runs the native desktop window connected to the Rust Axum server:
+Install system dependencies for Tauri on Linux:
 
 ```bash
-# Install dependencies (if not already installed)
-npm install
-npm --prefix desktop-panel install
-npm --prefix web-client install
+sudo apt update
+sudo apt install -y libwebkit2gtk-4.1-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
 
-# Start Tauri in development mode
+### Development
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/xoxxel/Relay.git
+cd Relay
+
+# 2. Install Node dependencies
+npm install
+cd desktop-panel && npm install && cd ..
+cd web-client && npm install && cd ..
+
+# 3. Build the web-client (served by Axum at runtime)
+npm run build:web
+
+# 4. Launch Tauri in dev mode (hot-reloads the desktop panel)
 npm run tauri:dev
 ```
 
----
-
-### 2. Preview Desktop Panel in Browser (Quick UI Test)
-
-To inspect and test the desktop control panel components directly in your browser:
+### Build for Production
 
 ```bash
-npm run dev:desktop
+# Build both frontends, then compile and bundle the Tauri app
+npm run build:all
+npm run tauri:build
 ```
-Open in browser: 👉 **`http://localhost:1420`**
 
----
+The installer / binary is placed in `src-tauri/target/release/bundle/`.
 
-### 3. Preview Mobile Web Client
-
-To test the mobile-friendly web client (which clients on your local network will see):
+Alternatively, use the interactive install script:
 
 ```bash
-npm run dev:web
+chmod +x install.sh
+./install.sh
 ```
-Open in browser: 👉 **`http://localhost:5173`**
 
----
-
-### 4. Run Automated Backend & Security Tests
-
-Executes all unit tests, path traversal security validation, and Axum server integration tests:
+### Run Backend Tests
 
 ```bash
 npm run test:backend
+# or directly:
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ---
 
-## 📁 Repository Structure
+## Download
 
-```text
-Relay/
-├── desktop-panel/      # Desktop Vue 3 + Vite + Tailwind Dark Theme UI
-├── web-client/         # Mobile Web Client served embedded by Axum
-├── src-tauri/          # Rust Backend & Axum HTTP / IPC Core
-│   ├── src/
-│   │   ├── commands.rs     # Tauri IPC Commands
-│   │   ├── state.rs        # AppState & ServerStatus models
-│   │   ├── web_assets.rs   # rust-embed bundle serving
-│   │   └── server/         # Axum server routes & path safety
-│   └── tests/              # Server integration tests
-├── ROADMAP.md          # Detailed development roadmap
-└── proposal.md         # Technical architecture specification
-```
+Pre-built binaries for Linux, macOS, and Windows are available on the [**Releases**](https://github.com/xoxxel/Relay/releases) page.
+
+| Platform | Package |
+|----------|---------|
+| Linux (deb) | `relay_*.deb` |
+| Linux (AppImage) | `relay_*.AppImage` |
+| macOS | `relay_*.dmg` |
+| Windows | `relay_*.msi` |
+
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).

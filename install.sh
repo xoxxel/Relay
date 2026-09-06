@@ -1,59 +1,59 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════
-#  Relay — اسکریپت نصب و ساخت تعاملی
-#  سیستم تستشده: Linux Mint 22.3 / Ubuntu 24.04
+#  Relay — Interactive Build & Install Script
+#  Tested on: Linux Mint 22.3 / Ubuntu 24.04
 # ══════════════════════════════════════════════════════════════
 
 set -uo pipefail   # note: no -e so apt warnings don't abort
 export PATH="$HOME/.cargo/bin:$PATH"
 
-# ── رنگ‌ها ─────────────────────────────────────────────────────
+# ── Colors ─────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
-# ── توابع کمکی ─────────────────────────────────────────────────
+# ── Helper functions ─────────────────────────────────────────────
 header()  { echo -e "\n${BOLD}${CYAN}══ $* ══${RESET}"; }
 info()    { echo -e "  ${GREEN}✔${RESET}  $*"; }
 warn()    { echo -e "  ${YELLOW}⚠${RESET}  $*"; }
 fail()    { echo -e "  ${RED}✘  $*${RESET}"; exit 1; }
-expected(){ echo -e "  ${CYAN}↳ خروجی انتظاری:${RESET} $*"; }
+expected(){ echo -e "  ${CYAN}↳ Expected output:${RESET} $*"; }
 
-# ── تأیید کاربر (fix: echo -en + read -r جدا) ─────────────────
+# ── User confirmation (fix: echo -en + read -r separately) ─────────────────
 confirm() {
-    local msg="${1:-ادامه دهم؟}"
+    local msg="${1:-Continue?}"
     echo ""
-    echo -en "  ${YELLOW}▶ ${msg} [Enter=بله / Ctrl+C=لغو]${RESET} "
+    echo -en "  ${YELLOW}▶ ${msg} [Enter=yes / Ctrl+C=cancel]${RESET} "
     read -r _
 }
 
 confirm_check() {
-    local msg="${1:-خروجی درست بود؟}"
+    local msg="${1:-Output looks correct?}"
     echo ""
-    echo -en "  ${YELLOW}▶ ${msg} [y=بله / n=لغو]${RESET}  "
+    echo -en "  ${YELLOW}▶ ${msg} [y=yes / n=cancel]${RESET}  "
     read -r ans
-    [[ "${ans,,}" == "n" ]] && fail "کاربر لغو کرد."
+    [[ "${ans,,}" == "n" ]] && fail "Cancelled by user."
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEB_PATH="$SCRIPT_DIR/src-tauri/target/release/bundle/deb/relay_0.1.0_amd64.deb"
 
 # ══════════════════════════════════════════════════════════════
-echo -e "\n${BOLD}🔌  Relay — نصب‌کنندهٔ تعاملی${RESET}"
-echo    "    هر مرحله قبل از اجرا توضیح داده می‌شود."
-echo    "    Ctrl+C را در هر لحظه بزن تا لغو شود."
+echo -e "\n${BOLD}🔌  Relay — Interactive Installer${RESET}"
+echo    "    Each step will be explained before it runs."
+echo    "    Press Ctrl+C at any time to cancel."
 # ══════════════════════════════════════════════════════════════
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۱ — نصب پیش‌نیازهای سیستم"
+header "Step 1 — Install system dependencies"
 # ─────────────────────────────────────────────────────────────
-echo "    بسته‌های لازم برای کامپایل Tauri روی سیستم نصب می‌شوند:"
+echo "    The following packages required to compile Tauri will be installed:"
 echo "    libwebkit2gtk-4.1-dev, libgtk-3-dev, librsvg2-dev, patchelf,"
 echo "    build-essential, libssl-dev, libxdo-dev, libayatana-appindicator3-dev"
-warn "خطاهای GPG ریپوهای ربط‌نداشته (مثل Outline VPN) را نادیده بگیر — مشکل Relay نیست."
-confirm "نصب پیش‌نیازها را شروع کنم؟ (نیاز به رمز sudo)"
+warn "GPG errors from unrelated repos (e.g. Outline VPN) can be ignored — they are not a Relay issue."
+confirm "Install system dependencies? (sudo password required)"
 
-# apt update: خطاهای ریپوهای ثالث را نادیده می‌گیریم
+# apt update: ignore errors from third-party repos
 sudo apt update 2>&1 | grep -v "^W:\|^Ign:" || true
 
 sudo apt install -y \
@@ -65,13 +65,13 @@ sudo apt install -y \
   libssl-dev \
   libxdo-dev \
   libayatana-appindicator3-dev \
-  || fail "نصب بسته‌ها ناموفق بود — خروجی بالا را چک کن."
+  || fail "Package installation failed — check the output above."
 
-info "پیش‌نیازها نصب شدند."
+info "System dependencies installed."
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۲ — بررسی Rust و Node"
+header "Step 2 — Verify Rust & Node"
 # ─────────────────────────────────────────────────────────────
 RUST_VER=$(cargo --version 2>/dev/null || echo "NOT FOUND")
 NODE_VER=$(node  --version 2>/dev/null || echo "NOT FOUND")
@@ -80,110 +80,110 @@ echo -e "    cargo : ${GREEN}${RUST_VER}${RESET}"
 echo -e "    node  : ${GREEN}${NODE_VER}${RESET}"
 expected "cargo X.YY.Z  |  node vXX.Y.Z"
 
-[[ "$RUST_VER" == "NOT FOUND" ]] && fail "Rust پیدا نشد — از https://rustup.rs نصب کن."
-[[ "$NODE_VER" == "NOT FOUND" ]] && fail "Node پیدا نشد — از https://nodejs.org نصب کن."
+[[ "$RUST_VER" == "NOT FOUND" ]] && fail "Rust not found — install from https://rustup.rs"
+[[ "$NODE_VER" == "NOT FOUND" ]] && fail "Node not found — install from https://nodejs.org"
 
-confirm_check "نسخه‌ها درست به نظر می‌رسند؟"
+confirm_check "Versions look correct?"
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۳ — نصب وابستگی‌های Node"
+header "Step 3 — Install Node dependencies"
 # ─────────────────────────────────────────────────────────────
-echo "    npm install برای root، desktop-panel و web-client اجرا می‌شود."
-confirm "شروع کنم؟"
+echo "    Running npm install for root, desktop-panel, and web-client."
+confirm "Proceed?"
 
 cd "$SCRIPT_DIR"
-npm install --silent         || fail "npm install (root) ناموفق"
-npm --prefix desktop-panel install --silent || fail "npm install (desktop-panel) ناموفق"
-npm --prefix web-client install --silent    || fail "npm install (web-client) ناموفق"
+npm install --silent         || fail "npm install (root) failed"
+npm --prefix desktop-panel install --silent || fail "npm install (desktop-panel) failed"
+npm --prefix web-client install --silent    || fail "npm install (web-client) failed"
 
-info "node_modules نصب شدند."
+info "node_modules installed."
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۴ — ساخت باندل‌های Vue (web-client + desktop-panel)"
+header "Step 4 — Build Vue bundles (web-client + desktop-panel)"
 # ─────────────────────────────────────────────────────────────
-echo "    هر دو پروژه‌ی Vue با Vite build می‌شوند."
-echo "    خروجی: desktop-panel/dist  و  web-client/dist"
-confirm "Build را شروع کنم؟"
+echo "    Both Vue projects will be built with Vite."
+echo "    Output: desktop-panel/dist  and  web-client/dist"
+confirm "Start build?"
 
 npm run build:all 2>&1 | tail -25
-[[ ${PIPESTATUS[0]} -ne 0 ]] && fail "build:all ناموفق بود."
+[[ ${PIPESTATUS[0]} -ne 0 ]] && fail "build:all failed."
 
-expected "✓ built in ...ms  (برای هر دو باندل)"
-confirm_check "خروجی build موفق بود؟"
+expected "✓ built in ...ms  (for each bundle)"
+confirm_check "Build succeeded?"
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۵ — ساخت باینری Rust + بسته‌ی نصبی"
+header "Step 5 — Build Rust binary + installer package"
 # ─────────────────────────────────────────────────────────────
-echo "    این مرحله چند دقیقه طول می‌کشد (کامپایل Release Rust)."
-echo "    خروجی نهایی:"
+echo "    This step takes a few minutes (Release Rust compilation)."
+echo "    Final output:"
 echo "      .deb     →  src-tauri/target/release/bundle/deb/"
 echo "      AppImage →  src-tauri/target/release/bundle/appimage/"
-confirm "tauri build را شروع کنم؟"
+confirm "Start tauri build?"
 
 set +o pipefail
 npm run tauri:build 2>&1 | grep --line-buffered -E "(Compiling relay|Finished|Bundling|Built|^error)" || true
 BUILD_EXIT=${PIPESTATUS[0]}
 set -o pipefail
 
-[[ $BUILD_EXIT -ne 0 ]] && fail "tauri:build ناموفق بود — خروجی بالا را چک کن."
+[[ $BUILD_EXIT -ne 0 ]] && fail "tauri:build failed — check the output above."
 
-# جستجوی فایل .deb
+# Search for .deb file
 if [[ ! -f "$DEB_PATH" ]]; then
     DEB_PATH=$(find "$SCRIPT_DIR/src-tauri/target/release/bundle/deb/" -name "*.deb" 2>/dev/null | head -1 || true)
-    [[ -z "$DEB_PATH" ]] && fail "هیچ فایل .deb پیدا نشد."
+    [[ -z "$DEB_PATH" ]] && fail "No .deb file found."
 fi
 
-info "بسته ساخته شد: $(basename "$DEB_PATH")"
-confirm_check "Build موفق بود؟"
+info "Package built: $(basename "$DEB_PATH")"
+confirm_check "Build succeeded?"
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۶ — نصب .deb روی سیستم"
+header "Step 6 — Install .deb on system"
 # ─────────────────────────────────────────────────────────────
-echo -e "    دستور: ${CYAN}sudo apt install $DEB_PATH${RESET}"
-confirm "نصب را شروع کنم؟ (نیاز به رمز sudo)"
+echo -e "    Command: ${CYAN}sudo apt install $DEB_PATH${RESET}"
+confirm "Start installation? (sudo password required)"
 
-sudo apt install -y "$DEB_PATH" || fail "نصب .deb ناموفق بود."
+sudo apt install -y "$DEB_PATH" || fail "Installation of .deb failed."
 
-info "Relay روی سیستم نصب شد."
-expected "برنامه‌ای به نام Relay در منوی برنامه‌ها ظاهر شود"
+info "Relay installed on system."
+expected "An application named Relay should appear in the application menu"
 
 
 # ─────────────────────────────────────────────────────────────
-header "قدم ۷ — ساخت میانبر روی دسکتاپ"
+header "Step 7 — Create desktop shortcut"
 # ─────────────────────────────────────────────────────────────
 DESKTOP_FILE=$(find /usr/share/applications -iname "relay.desktop" 2>/dev/null | head -1 || true)
 
 if [[ -z "$DESKTOP_FILE" ]]; then
-    warn "فایل relay.desktop پیدا نشد. فهرست فایل‌های موجود:"
-    ls /usr/share/applications/ | grep -i relay || echo "    (هیچ کدام)"
-    confirm "بدون میانبر ادامه دهم؟"
+    warn "relay.desktop not found. Available files:"
+    ls /usr/share/applications/ | grep -i relay || echo "    (none)"
+    confirm "Continue without a shortcut?"
 else
-    echo -e "    فایل: ${CYAN}$DESKTOP_FILE${RESET}"
-    confirm "میانبر روی دسکتاپ بسازم؟"
+    echo -e "    File: ${CYAN}$DESKTOP_FILE${RESET}"
+    confirm "Create desktop shortcut?"
 
     ln -sf "$DESKTOP_FILE" ~/Desktop/Relay.desktop
     chmod +x ~/Desktop/Relay.desktop
     gio set ~/Desktop/Relay.desktop metadata::trusted true 2>/dev/null \
-        || warn "gio set ناموفق — کلیک راست روی آیکون و 'Allow Launching' را بزن."
+        || warn "gio set failed — right-click the icon and select 'Allow Launching'."
 
-    info "میانبر ساخته شد: ~/Desktop/Relay.desktop"
-    expected "آیکون Relay روی دسکتاپ ظاهر شود"
-    confirm_check "آیکون روی دسکتاپ دیده می‌شود؟"
+    info "Shortcut created: ~/Desktop/Relay.desktop"
+    expected "Relay icon should appear on the desktop"
+    confirm_check "Desktop icon is visible?"
 fi
 
 
 # ══════════════════════════════════════════════════════════════
 echo ""
-echo -e "${BOLD}${GREEN}🎉  همه مراحل با موفقیت انجام شدند!${RESET}"
+echo -e "${BOLD}${GREEN}🎉  All steps completed successfully!${RESET}"
 echo ""
-echo "  ➤  برنامه را از منوی برنامه‌ها یا دسکتاپ باز کن"
-echo "  ➤  Toggle را روشن کن → QR Code نمایش داده می‌شود"
-echo "  ➤  از موبایل (همان Wi-Fi) QR را اسکن کن"
-echo "  ➤  آپلود / دانلود / کلیپ‌بورد را تست کن"
+echo "  ➤  Open Relay from the application menu or desktop"
+echo "  ➤  Turn on the toggle → QR Code will be displayed"
+echo "  ➤  Scan the QR code from your mobile (same Wi-Fi)"
+echo "  ➤  Test upload / download / clipboard"
 echo ""
-echo "  حذف برنامه:  sudo apt remove relay"
+echo "  Uninstall:  sudo apt remove relay"
 echo ""
