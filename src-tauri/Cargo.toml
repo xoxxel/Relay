@@ -1,6 +1,6 @@
 [package]
 name = "relay"
-version = "0.2.0"
+version = "0.2.1"
 description = "Relay - Local Network File and Clipboard Sharing"
 authors = ["Relay Team"]
 edition = "2021"

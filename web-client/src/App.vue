@@ -85,53 +85,219 @@ onBeforeUnmount(() => { unlockPage?.(); stopViewportTracking?.(); releaseMedia()
 </script>
 
 <template>
-  <div class="workspace" @dragover.prevent @drop.prevent="dropFiles">
-    <aside class="sidebar">
-      <a class="brand" href="/" aria-label="Relay home"><img src="/relay-icon.svg" alt=""/><span>relay<span class="brand-dot">.</span></span></a>
-      <p class="eyebrow nav-label">YOUR WORKSPACE</p>
-      <span class="mobile-connection"><span :class="['status-dot',{online:connected}]"></span>{{ connected ? 'Connected' : 'Offline' }}</span>
-      <nav aria-label="Workspace">
-        <button :class="['nav-item',{active:activeTab==='files'}]" @click="activeTab='files'"><Files/> Files <span>{{ files.length }}</span></button>
-        <button :class="['nav-item',{active:activeTab==='clipboard'}]" @click="activeTab='clipboard'"><Clipboard/> Clipboard <span>{{ clips.length }}</span></button>
-      </nav>
-      <div class="sidebar-bottom"><div class="network-card"><span :class="['status-dot',{online:connected}]"></span><div><strong>{{ connected ? 'Connected locally' : 'Reconnecting…' }}</strong><small>Your files stay on your network</small></div></div><button class="device" @click="renameDevice"><Laptop/><span>{{ deviceName }}</span><Pencil/></button></div>
-    </aside>
+  <div class="app" @dragover.prevent @drop.prevent="dropFiles">
+
+    <!-- Desktop icon rail (hidden on mobile) -->
+    <nav class="nav-rail" aria-label="Navigation">
+      <a class="rail-brand" href="/" aria-label="Relay home">
+        <img src="/relay-icon.svg" alt="Relay"/>
+      </a>
+      <button class="rail-item" :class="{active: activeTab==='files'}" @click="activeTab='files'" title="Files" aria-label="Files">
+        <Files/>
+      </button>
+      <button class="rail-item" :class="{active: activeTab==='clipboard'}" @click="activeTab='clipboard'" title="Clipboard" aria-label="Clipboard">
+        <Clipboard/>
+      </button>
+    </nav>
+
+    <!-- Main shell (everything to the right of the rail on desktop) -->
     <div class="main-shell">
-      <header class="topbar"><span>Workspace <ChevronRight/> <strong>{{ activeTab==='files'?'Files':'Clipboard' }}</strong></span><span class="connection"><span :class="['status-dot',{online:connected}]"></span>{{ connected?'Live sync':'Offline' }}</span></header>
+
+      <!-- App header bar -->
+      <header class="app-header">
+        <!-- Mobile: logo on left -->
+        <a class="header-brand" href="/" aria-label="Relay home">
+          <img src="/relay-icon.svg" alt=""/>
+          <span>relay<span class="brand-dot">.</span></span>
+        </a>
+
+        <!-- Breadcrumb (files tab only) -->
+        <nav v-if="activeTab==='files'" class="header-breadcrumb" aria-label="Folder path">
+          <button @click="openFolder('')"><Folder/><span>Shared</span></button>
+          <template v-for="(part, i) in segments" :key="i">
+            <ChevronRight/>
+            <button @click="openFolder(segments.slice(0, i+1).join('/'))">{{ part }}</button>
+          </template>
+        </nav>
+        <span v-else class="header-title">Clipboard</span>
+
+        <!-- Right side: status + device -->
+        <div class="header-end">
+          <span class="status-indicator">
+            <span :class="['status-dot', {online: connected}]"></span>
+            <span class="status-label">{{ connected ? 'Live' : 'Offline' }}</span>
+          </span>
+          <button class="device-btn" @click="renameDevice" :title="deviceName">
+            <Laptop/><span>{{ deviceName }}</span><Pencil/>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main content -->
       <main>
-        <section class="page-heading"><div><p class="eyebrow">{{ activeTab==='files'?'A PLACE FOR EVERYTHING':'BETWEEN YOUR DEVICES' }}</p><h1>{{ activeTab==='files'?'Your files':'Shared clipboard' }}</h1><p>{{ activeTab==='files'?'Browse, preview and edit. Everything, close at hand.':'Send a thought, a link or a snippet. Pick it up anywhere.' }}</p></div><button v-if="activeTab==='files'" class="primary" :disabled="!!uploadProgress" @click="picker.click()"><Upload/> Upload files</button></section>
-        <input ref="picker" type="file" multiple hidden @change="chooseFiles"/>
-        <div v-if="error" class="message error" role="alert"><span>{{ error }}</span><button aria-label="Dismiss error" @click="error=null"><X/></button></div>
-        <section v-if="manualCopy !== null" class="manual-copy"><label for="manual">Select this text and use your device’s Copy command</label><textarea id="manual" readonly :value="manualCopy" @focus="$event.target.select()"></textarea><button @click="manualCopy=null">Done</button></section>
+        <!-- Error banner -->
+        <div v-if="error" class="message error" role="alert">
+          <span>{{ error }}</span>
+          <button aria-label="Dismiss error" @click="error=null"><X/></button>
+        </div>
+
+        <!-- Manual copy fallback -->
+        <section v-if="manualCopy !== null" class="manual-copy">
+          <label for="manual">Select this text and use your device's Copy command</label>
+          <textarea id="manual" readonly :value="manualCopy" @focus="$event.target.select()"></textarea>
+          <button @click="manualCopy=null">Done</button>
+        </section>
+
+        <!-- FILES TAB -->
         <template v-if="activeTab==='files'">
-          <div class="toolbar files-toolbar"><div class="search"><Search/><input v-model="query" aria-label="Search files" placeholder="Search this folder…"/></div><select v-model="sort" aria-label="Sort files"><option value="name">Name A–Z</option><option value="date">Recently modified</option><option value="size">Largest first</option></select><div class="view-switch"><button :class="{chosen:!grid}" aria-label="List view" :aria-pressed="!grid" @click="grid=false"><List/></button><button :class="{chosen:grid}" aria-label="Grid view" :aria-pressed="grid" @click="grid=true"><LayoutGrid/></button></div></div>
-          <div class="folderbar"><nav class="breadcrumbs" aria-label="Folder path"><button @click="openFolder('')"><Folder/> Shared</button><template v-for="(part,i) in segments" :key="i"><ChevronRight/><button @click="openFolder(segments.slice(0,i+1).join('/'))">{{ part }}</button></template></nav><div class="actions"><button title="New folder" aria-label="New folder" @click="createFolder"><FolderPlus/></button><button title="Refresh" aria-label="Refresh files" :disabled="loading" @click="fetchFiles"><RefreshCw :class="{spin:loading}"/></button></div></div>
-          <div v-if="uploadProgress" class="upload-status" role="status"><div><Upload/><strong>{{ uploadProgress.name }}</strong><span>{{ uploadProgress.done+1 }} / {{ uploadProgress.total }}</span></div><progress max="100" :value="uploadProgress.percent"></progress></div>
-          <div v-if="loading && !files.length" class="empty" role="status"><RefreshCw class="spin"/><h2>Loading your files…</h2></div>
-          <div v-else-if="!visibleFiles.length" class="empty"><Folder/><h2>{{ query?'No matching files':'Make room for your next idea' }}</h2><p>{{ query?'Try a different file name.':'Drop files here or use Upload files to get started.' }}</p></div>
-          <section v-else :class="['file-list',{grid}]" aria-label="Files">
-            <div v-if="!grid" class="list-heading"><span>Name</span><span>Size</span><span>Modified</span><span>Actions</span></div>
+          <!-- Toolbar: search + sort + view toggle + upload + new folder + refresh -->
+          <div class="toolbar">
+            <div class="search">
+              <Search/>
+              <input v-model="query" aria-label="Search files" placeholder="Search this folder…"/>
+            </div>
+            <select v-model="sort" aria-label="Sort files">
+              <option value="name">Name A–Z</option>
+              <option value="date">Recently modified</option>
+              <option value="size">Largest first</option>
+            </select>
+            <div class="view-switch">
+              <button :class="{chosen: !grid}" aria-label="List view" :aria-pressed="!grid" @click="grid=false"><List/></button>
+              <button :class="{chosen: grid}" aria-label="Grid view" :aria-pressed="grid" @click="grid=true"><LayoutGrid/></button>
+            </div>
+            <div class="toolbar-actions">
+              <button title="Upload files" aria-label="Upload files" :disabled="!!uploadProgress" @click="picker.click()"><Upload/></button>
+              <button title="New folder" aria-label="New folder" @click="createFolder"><FolderPlus/></button>
+              <button title="Refresh" aria-label="Refresh files" :disabled="loading" @click="fetchFiles"><RefreshCw :class="{spin: loading}"/></button>
+            </div>
+          </div>
+
+          <!-- Upload progress -->
+          <div v-if="uploadProgress" class="upload-status" role="status">
+            <div><Upload/><strong>{{ uploadProgress.name }}</strong><span>{{ uploadProgress.done+1 }} / {{ uploadProgress.total }}</span></div>
+            <progress max="100" :value="uploadProgress.percent"></progress>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="loading && !files.length" class="empty" role="status">
+            <RefreshCw class="spin"/><h2>Loading your files…</h2>
+          </div>
+
+          <!-- Empty state -->
+          <div v-else-if="!visibleFiles.length" class="empty">
+            <Folder/><h2>{{ query ? 'No matching files' : 'Make room for your next idea' }}</h2>
+            <p>{{ query ? 'Try a different file name.' : 'Drop files here or use Upload files to get started.' }}</p>
+          </div>
+
+          <!-- File list -->
+          <section v-else :class="['file-list', {grid}]" aria-label="Files">
+            <div v-if="!grid" class="list-heading">
+              <span>Name</span><span>Size</span><span>Modified</span><span>Actions</span>
+            </div>
             <article v-for="file in visibleFiles" :key="file.path" class="file-row">
-              <button class="file-open" @click="open(file)"><span :class="['file-icon',file.is_dir?'folder':fileKind(file)]"><component :is="icon(file)"/></span><span class="file-label"><strong>{{ file.name }}</strong><small>{{ file.is_dir?'Folder':(file.name.split('.').pop().toUpperCase()+' file') }}<span v-if="!file.is_dir" class="mobile-file-size"> · {{ size(file.size_bytes) }}</span></small></span></button>
-              <span class="file-size">{{ file.is_dir?'—':size(file.size_bytes) }}</span><span class="file-date">{{ date(file.modified_at) }}</span>
-              <div class="actions"><button v-if="!file.is_dir" :aria-label="`Download ${file.name}`" title="Download" @click="downloadFile(file)"><Download/></button><button class="danger" :aria-label="`Delete ${file.name}`" title="Delete" @click="deleteFile(file)"><Trash2/></button></div>
+              <button class="file-open" @click="open(file)">
+                <span :class="['file-icon', file.is_dir ? 'folder' : fileKind(file)]">
+                  <component :is="icon(file)"/>
+                </span>
+                <span class="file-label">
+                  <strong>{{ file.name }}</strong>
+                  <small>{{ file.is_dir ? 'Folder' : (file.name.split('.').pop().toUpperCase()+' file') }}<span v-if="!file.is_dir" class="mobile-file-size"> · {{ size(file.size_bytes) }}</span></small>
+                </span>
+              </button>
+              <span class="file-size">{{ file.is_dir ? '—' : size(file.size_bytes) }}</span>
+              <span class="file-date">{{ date(file.modified_at) }}</span>
+              <div class="actions">
+                <button v-if="!file.is_dir" :aria-label="`Download ${file.name}`" title="Download" @click="downloadFile(file)"><Download/></button>
+                <button class="danger" :aria-label="`Delete ${file.name}`" title="Delete" @click="deleteFile(file)"><Trash2/></button>
+              </div>
             </article>
           </section>
-          <footer class="file-footer"><span>{{ visibleFiles.length }} {{ visibleFiles.length===1?'item':'items' }}</span><span>Drag & drop to upload · Click a file to preview</span></footer>
+
+          <!-- Footer -->
+          <footer class="file-footer">
+            <span>{{ visibleFiles.length }} {{ visibleFiles.length === 1 ? 'item' : 'items' }}</span>
+            <span>Drag &amp; drop to upload · Click a file to preview</span>
+          </footer>
         </template>
+
+        <!-- CLIPBOARD TAB -->
         <template v-else>
-          <form class="composer" @submit.prevent="send"><label for="clip-draft">Share something</label><textarea ref="composerInput" id="clip-draft" rows="4" v-model="draft" :disabled="sending" placeholder="Paste a link, write a note, or share a code snippet…" @keydown.ctrl.enter.prevent="send" @keydown.meta.enter.prevent="send"></textarea><div><span>From {{ deviceName }} · Ctrl / ⌘ + Enter to send</span><button class="primary" :disabled="sending || !draft.trim()"><Send/>{{ sending?'Sending…':'Share text' }}</button></div></form>
-          <div class="toolbar clipboard-toolbar"><h2>Recent notes <span>{{ clips.length }}</span></h2><div class="search"><Search/><input v-model="query" placeholder="Search clipboard…" aria-label="Search clipboard"/></div><button aria-label="Refresh clipboard" @click="fetchClips"><RefreshCw/></button></div>
-          <div v-if="!visibleClips.length" class="empty"><Clipboard/><h2>{{ query?'No matching notes':'Your clipboard, in sync' }}</h2><p>Share text above to make it available on your devices.</p></div>
+          <form class="composer" @submit.prevent="send">
+            <label for="clip-draft">Share something</label>
+            <textarea ref="composerInput" id="clip-draft" rows="4" v-model="draft" :disabled="sending" placeholder="Paste a link, write a note, or share a code snippet…" @keydown.ctrl.enter.prevent="send" @keydown.meta.enter.prevent="send"></textarea>
+            <div>
+              <span>From {{ deviceName }} · Ctrl / ⌘ + Enter to send</span>
+              <button class="primary" :disabled="sending || !draft.trim()"><Send/>{{ sending ? 'Sending…' : 'Share text' }}</button>
+            </div>
+          </form>
+          <div class="toolbar clipboard-toolbar">
+            <h2>Recent notes <span>{{ clips.length }}</span></h2>
+            <div class="search">
+              <Search/>
+              <input v-model="query" placeholder="Search clipboard…" aria-label="Search clipboard"/>
+            </div>
+            <button aria-label="Refresh clipboard" @click="fetchClips"><RefreshCw/></button>
+          </div>
+          <div v-if="!visibleClips.length" class="empty">
+            <Clipboard/><h2>{{ query ? 'No matching notes' : 'Your clipboard, in sync' }}</h2>
+            <p>Share text above to make it available on your devices.</p>
+          </div>
           <section class="clip-grid" aria-label="Shared notes">
-            <ClipboardCard v-for="clip in visibleClips" :key="clip.id" :clip="clip" @copy="copy" @delete="removeClip" />
+            <ClipboardCard v-for="clip in visibleClips" :key="clip.id" :clip="clip" @copy="copy" @delete="removeClip"/>
           </section>
         </template>
       </main>
     </div>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" aria-label="Navigation">
+      <button :class="['bnav-item', {active: activeTab==='files'}]" @click="activeTab='files'">
+        <Files/><span>Files</span>
+        <span v-if="files.length" class="bnav-badge">{{ files.length }}</span>
+      </button>
+      <button :class="['bnav-item', {active: activeTab==='clipboard'}]" @click="activeTab='clipboard'">
+        <Clipboard/><span>Clipboard</span>
+        <span v-if="clips.length" class="bnav-badge">{{ clips.length }}</span>
+      </button>
+    </nav>
+
+    <!-- Toast notification -->
     <div v-if="notice" class="toast" role="status"><Check/>{{ notice }}</div>
+
+    <!-- File viewer dialog -->
     <dialog ref="viewer" class="viewer" aria-labelledby="preview-title" @cancel.prevent="closeViewer" @click="($event.target===viewer) && closeViewer()">
-      <template v-if="selected"><header><div><span class="file-icon"><component :is="icon(selected)"/></span><div><h2 id="preview-title">{{ selected.name }}</h2><small>{{ size(selected.size_bytes) }} · {{ kind==='text'?'Text editor':'Preview' }}{{ dirty?' · Unsaved changes':'' }}</small></div></div><button aria-label="Close preview" :disabled="saving" @click="closeViewer"><X/></button></header><div :class="['viewer-body', {'text-preview':kind==='text' && !busy} ]"><p v-if="busy" class="empty">Loading preview…</p><div v-if="previewError" class="message error" role="alert">{{ previewError }}</div><textarea v-if="kind==='text' && !busy && (!previewError || content || dirty)" v-model="content" :disabled="saving" class="editor" spellcheck="false" aria-label="File content" @keydown.ctrl.s.prevent="save" @keydown.meta.s.prevent="save"></textarea><img v-if="kind==='image' && mediaUrl" :src="mediaUrl" :alt="selected.name" @error="previewError='This image format cannot be previewed. Download it to open.'"/><video v-if="kind==='video' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></video><audio v-if="kind==='audio' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></audio><div v-if="kind==='unsupported'" class="empty"><FileText/><h2>Open with your favorite app</h2><p>Download this file to view or edit it on your device.</p></div></div><footer><button @click="downloadFile(selected)"><Download/> Download</button><span v-if="kind==='text'">UTF-8 · Up to 1 MB</span><button v-if="kind==='text'" class="primary" :disabled="busy || saving || !dirty" @click="save"><Save/>{{ saving?'Saving…':'Save changes' }}</button></footer></template>
+      <template v-if="selected">
+        <header>
+          <div>
+            <span class="file-icon"><component :is="icon(selected)"/></span>
+            <div>
+              <h2 id="preview-title">{{ selected.name }}</h2>
+              <small>{{ size(selected.size_bytes) }} · {{ kind==='text' ? 'Text editor' : 'Preview' }}{{ dirty ? ' · Unsaved changes' : '' }}</small>
+            </div>
+          </div>
+          <button aria-label="Close preview" :disabled="saving" @click="closeViewer"><X/></button>
+        </header>
+        <div :class="['viewer-body', {'text-preview': kind==='text' && !busy}]">
+          <p v-if="busy" class="empty">Loading preview…</p>
+          <div v-if="previewError" class="message error" role="alert">{{ previewError }}</div>
+          <textarea v-if="kind==='text' && !busy && (!previewError || content || dirty)" v-model="content" :disabled="saving" class="editor" spellcheck="false" aria-label="File content" @keydown.ctrl.s.prevent="save" @keydown.meta.s.prevent="save"></textarea>
+          <img v-if="kind==='image' && mediaUrl" :src="mediaUrl" :alt="selected.name" @error="previewError='This image format cannot be previewed. Download it to open.'"/>
+          <video v-if="kind==='video' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></video>
+          <audio v-if="kind==='audio' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></audio>
+          <div v-if="kind==='unsupported'" class="empty">
+            <FileText/><h2>Open with your favorite app</h2>
+            <p>Download this file to view or edit it on your device.</p>
+          </div>
+        </div>
+        <footer>
+          <button @click="downloadFile(selected)"><Download/> Download</button>
+          <span v-if="kind==='text'">UTF-8 · Up to 1 MB</span>
+          <button v-if="kind==='text'" class="primary" :disabled="busy || saving || !dirty" @click="save"><Save/>{{ saving ? 'Saving…' : 'Save changes' }}</button>
+        </footer>
+      </template>
     </dialog>
+
+    <!-- Hidden file picker -->
+    <input ref="picker" type="file" multiple hidden @change="chooseFiles"/>
   </div>
 </template>

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] — 2026-09-22
+
+### Changed
+
+- Refined the web client layout and visual styling for the final release build.
+- Improved responsive presentation of the file manager and clipboard interface.
+
+---
+
 ## [0.2.0] — 2026-09-22
 
 ### Added
@@ -85,5 +94,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.2.1]: https://github.com/xoxxel/Relay/releases/tag/v0.2.1
 [0.2.0]: https://github.com/xoxxel/Relay/releases/tag/v0.2.0
 [0.1.0]: https://github.com/xoxxel/Relay/releases/tag/v0.1.0
