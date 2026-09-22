@@ -1,263 +1,137 @@
+<script setup>
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { Folder, Files, Clipboard, Search, Upload, FolderPlus, RefreshCw, Download, Trash2, Copy, Check, X, FileText, Image, Music, Film, ChevronRight, Save, Send, Pencil, Laptop, LayoutGrid, List } from 'lucide-vue-next';
+import ClipboardCard from './components/ClipboardCard.vue';
+import { lockPageScroll, trackViewport } from './viewport';
+import { files, clips, currentPath, activeTab, loading, error, connected, uploadProgress, init, fetchFiles, openFolder, downloadFile, deleteFile, createFolder, uploadFiles, fetchClips, sendClip, deleteClip, copyText, deviceLabel, setDeviceLabel } from './relay';
+const composerInput = ref(null);
+let unlockPage, stopViewportTracking;
+function fitComposer() {
+  const input = composerInput.value;
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = `${input.scrollHeight}px`;
+}
+const query = ref(''), sort = ref('name'), grid = ref(false), draft = ref(''), sending = ref(false);
+const deviceName = ref(deviceLabel()), notice = ref(''), manualCopy = ref(null), picker = ref(null);
+const viewer = ref(null), selected = ref(null), busy = ref(false), saving = ref(false), previewError = ref('');
+const content = ref(''), original = ref(''), mediaUrl = ref(''), kind = ref('unsupported');
+let timer, request = 0;
+watch(draft, () => nextTick(fitComposer));
+const dirty = computed(() => content.value !== original.value);
+const segments = computed(() => currentPath.value.split('/').filter(Boolean));
+const visibleFiles = computed(() => files.value.filter(f => f.name.toLowerCase().includes(query.value.toLowerCase())).slice().sort((a,b) => {
+  if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+  if (sort.value === 'size') return b.size_bytes - a.size_bytes;
+  if (sort.value === 'date') return new Date(b.modified_at || 0) - new Date(a.modified_at || 0);
+  return a.name.localeCompare(b.name, undefined, { numeric: true });
+}));
+const visibleClips = computed(() => clips.value.filter(c => c.content.toLowerCase().includes(query.value.toLowerCase())));
+watch(activeTab, () => { query.value = ''; error.value = null; if (activeTab.value === 'clipboard') fetchClips(); });
+watch(currentPath, () => { query.value = ''; });
+function toast(text) { notice.value = text; clearTimeout(timer); timer = setTimeout(() => notice.value = '', 4500); }
+function size(n) { if (!n) return '0 B'; const i = Math.min(3, Math.floor(Math.log(n)/Math.log(1024))); return `${(n/1024**i).toFixed(i ? 1 : 0)} ${['B','KB','MB','GB'][i]}`; }
+function date(s) { return s ? new Date(s).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'; }
+function fileKind(f) {
+  const mime = f.mime_type || '', ext = f.name.split('.').pop().toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('text/') || ['txt','md','json','js','ts','vue','css','html','xml','yaml','yml','toml','csv','log','rs','py','sh','ini','conf','sql','svg'].includes(ext)) return 'text';
+  return 'unsupported';
+}
+function icon(f) { return f.is_dir ? Folder : ({image:Image,audio:Music,video:Film}[fileKind(f)] || FileText); }
+async function copy(clip) { try { await copyText(clip.content); toast('Copied to this device'); } catch (e) { manualCopy.value = clip.content; error.value = e.message; } }
+async function removeClip(clip) { if (!confirm('Delete this shared clipboard item?')) return; try { await deleteClip(clip.id); toast('Clipboard item deleted'); } catch(e) { error.value = e.message; } }
+async function send() { if (!draft.value.trim() || sending.value) return; sending.value = true; try { await sendClip(draft.value); draft.value = ''; toast('Shared with your devices'); } catch(e) { error.value = `Could not send: ${e.message}`; } finally { sending.value = false; } }
+function renameDevice() { const name = prompt('Name this device', deviceName.value); if(name?.trim()) { setDeviceLabel(name); deviceName.value = deviceLabel(); } }
+function chooseFiles(e) { uploadFiles(e.target.files); e.target.value = ''; }
+function dropFiles(e) { if (activeTab.value === 'files') uploadFiles(e.dataTransfer.files); }
+function releaseMedia() { if (mediaUrl.value) URL.revokeObjectURL(mediaUrl.value); mediaUrl.value = ''; }
+async function open(f) {
+  if (f.is_dir) return openFolder(f.path);
+  selected.value = f; content.value = ''; original.value = ''; previewError.value = ''; kind.value = fileKind(f); releaseMedia();
+  await nextTick();
+  unlockPage = lockPageScroll();
+  viewer.value.showModal();
+  const ticket = ++request;
+  if (kind.value === 'unsupported') return;
+  const limit = kind.value === 'text' ? 1024*1024 : 25*1024*1024;
+  if (f.size_bytes > limit) { previewError.value = `Preview is limited to ${size(limit)}. Download this file to open it.`; return; }
+  busy.value = true;
+  try {
+    const endpoint = kind.value === 'text' ? 'text' : 'download';
+    const res = await fetch(`/api/files/${endpoint}?path=${encodeURIComponent(f.path)}`);
+    if (!res.ok) throw new Error(res.status === 415 ? 'This file is not editable UTF-8 text.' : `Could not open file (HTTP ${res.status}).`);
+    if (kind.value === 'text') { const data = await res.json(); if (ticket === request) content.value = original.value = data.content; }
+    else { const blob = await res.blob(); if (ticket === request) mediaUrl.value = URL.createObjectURL(blob); }
+  } catch(e) { if(ticket === request) previewError.value = e.message; }
+  finally { if(ticket === request) busy.value = false; }
+}
+function closeViewer() { if (saving.value || (dirty.value && !confirm('Discard your unsaved changes?'))) return; ++request; busy.value = false; viewer.value.close(); unlockPage?.(); unlockPage = null; selected.value = null; releaseMedia(); }
+async function save() {
+  if (!dirty.value || saving.value) return;
+  saving.value = true; previewError.value = '';
+  const updated = content.value;
+  try {
+    const res = await fetch('/api/files/text', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path:selected.value.path, content:updated, original:original.value})});
+    if (!res.ok) throw new Error(res.status === 409 ? 'This file changed on another device. Copy your edits, close this window and reopen the file before saving.' : `Could not save (HTTP ${res.status}). Your edits are still here.`);
+    original.value = updated; toast('File saved'); fetchFiles();
+  } catch(e) { previewError.value = e.message; } finally { saving.value = false; }
+}
+function beforeUnload(e) { if (dirty.value && selected.value) { e.preventDefault(); e.returnValue = ''; } }
+onMounted(() => { stopViewportTracking = trackViewport(); init(); window.addEventListener('beforeunload', beforeUnload); });
+onBeforeUnmount(() => { unlockPage?.(); stopViewportTracking?.(); releaseMedia(); clearTimeout(timer); window.removeEventListener('beforeunload', beforeUnload); });
+</script>
+
 <template>
-  <div class="min-h-screen bg-paper text-ink flex flex-col max-w-lg mx-auto select-none">
-    <!-- Header -->
-    <header class="sticky top-0 z-20 bg-paper/95 backdrop-blur px-4 py-3.5 border-b border-border flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <img src="/relay-icon.svg" alt="Relay" class="w-7 h-7 opacity-90" draggable="false" />
-        <div>
-          <h1 class="text-base font-bold tracking-tight text-ink leading-none">Relay</h1>
-          <p class="text-[11px] text-ink-muted mt-0.5">Local Network Share</p>
-        </div>
-      </div>
-
-      <div
-        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
-        :class="connected
-          ? 'bg-signal/10 border-signal/30 text-signal'
-          : 'bg-idle-surface border-border text-ink-muted'"
-      >
-        <span
-          class="w-2 h-2 rounded-full"
-          :class="connected ? 'bg-signal animate-pulse' : 'bg-idle'"
-        ></span>
-        <span>{{ connected ? 'Connected' : 'Offline' }}</span>
-      </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="flex-1 px-4 pb-28 pt-3">
-      <!-- Files View -->
-      <template v-if="activeTab === 'files'">
-        <div class="flex items-center justify-between gap-2 mb-1">
-          <BreadcrumbBar />
-          <div class="flex items-center gap-0.5 flex-shrink-0">
-            <button
-              class="p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-elevated active:scale-95 transition-all"
-              title="New folder"
-              @click="createFolder"
-            >
-              <FolderPlus class="w-4 h-4" />
-            </button>
-            <button
-              class="p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-elevated active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Refresh"
-              :disabled="loading"
-              @click="fetchFiles"
-            >
-              <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
-            </button>
-          </div>
-        </div>
-
-        <!-- Error State -->
-        <div
-          v-if="error"
-          class="p-3.5 bg-red-950/40 border border-red-800/40 rounded-xl text-xs text-red-400 mb-4 flex items-center gap-2"
-        >
-          <AlertCircle class="w-4 h-4 flex-shrink-0" />
-          <span>{{ error }}</span>
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-if="files.length === 0 && !loading"
-          class="text-center py-14 px-4 bg-surface border border-border rounded-2xl flex flex-col items-center justify-center space-y-2"
-        >
-          <div class="w-12 h-12 rounded-2xl bg-surface-elevated border border-border flex items-center justify-center text-ink-muted mb-1">
-            <FolderOpen class="w-6 h-6" />
-          </div>
-          <p class="text-sm font-medium text-ink">This folder is empty</p>
-          <p class="text-xs text-ink-muted max-w-xs">
-            Tap the upload button below to add a file here.
-          </p>
-        </div>
-
-        <!-- File List -->
-        <div
-          v-else
-          class="bg-surface border border-border rounded-2xl divide-y divide-border-subtle overflow-hidden"
-        >
-          <FileRow
-            v-for="file in files"
-            :key="file.path"
-            :file="file"
-          />
-        </div>
-      </template>
-
-      <!-- Clipboard View -->
-      <template v-else>
-        <ClipComposer />
-
-        <button
-          class="mt-3 flex items-center gap-2 text-[11px] text-ink-muted bg-surface border border-border rounded-xl px-3 py-2"
-          @click="changeDeviceName"
-        >
-          <Smartphone class="w-3.5 h-3.5 text-ink-muted" />
-          <span>
-            Sending as
-            <span class="text-ink-secondary font-medium select-text">{{ deviceName }}</span>
-          </span>
-          <Pencil class="w-3 h-3 ml-auto text-ink-muted/70" />
-        </button>
-
-        <!-- Empty State -->
-        <div
-          v-if="clips.length === 0"
-          class="text-center py-14 px-4 bg-surface border border-border rounded-2xl flex flex-col items-center space-y-2 mt-3"
-        >
-          <div class="w-12 h-12 rounded-2xl bg-surface-elevated border border-border flex items-center justify-center text-ink-muted mb-1">
-            <ClipboardList class="w-6 h-6" />
-          </div>
-          <p class="text-sm font-medium text-ink">Clipboard is empty</p>
-          <p class="text-xs text-ink-muted max-w-xs">
-            Text you send from any connected device appears here instantly.
-          </p>
-        </div>
-
-        <!-- Clip List -->
-        <div
-          v-else
-          class="mt-3 bg-surface border border-border rounded-2xl divide-y divide-border-subtle overflow-hidden"
-        >
-          <div
-            v-for="clip in clips"
-            :key="clip.id"
-            class="px-4 py-3 cursor-pointer hover:bg-surface-elevated/60 transition-colors"
-            @click="copyText(clip.content)"
-          >
-            <div class="flex items-start gap-3">
-              <div class="min-w-0 flex-1">
-                <p class="text-sm text-ink leading-snug select-text whitespace-pre-wrap break-words">
-                  {{ clip.content }}
-                </p>
-                <p class="flex items-center gap-1.5 text-[10px] text-ink-muted mt-1.5">
-                  <UserRound class="w-3 h-3 flex-shrink-0" />
-                  <span class="truncate">{{ clip.device_label }}</span>
-                  <span class="text-ink-muted/50">•</span>
-                  <span>{{ timeAgo(clip.created_at) }}</span>
-                </p>
-              </div>
-              <div class="flex items-center gap-1 flex-shrink-0">
-                <button
-                  class="p-1.5 rounded-lg text-ink-muted/70 hover:text-signal hover:bg-signal/10 active:scale-95 transition-all"
-                  title="Copy to this device"
-                  @click.stop="copyText(clip.content)"
-                >
-                  <Copy class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  class="p-1.5 rounded-lg text-ink-muted/70 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
-                  title="Delete"
-                  @click.stop="deleteClip(clip.id)"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-    </main>
-
-    <!-- Bottom Tab Bar -->
-    <nav
-      class="fixed bottom-0 inset-x-0 z-30 bg-paper/95 backdrop-blur border-t border-border"
-    >
-      <div class="max-w-lg mx-auto px-4 py-2 grid grid-cols-2 gap-1">
-        <button
-          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
-          :class="activeTab === 'files'
-            ? 'bg-signal/10 text-signal'
-            : 'text-ink-muted hover:text-ink'"
-          @click="setTab('files')"
-        >
-          <FolderClosed class="w-4 h-4" />
-          Files
-        </button>
-        <button
-          class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
-          :class="activeTab === 'clipboard'
-            ? 'bg-signal/10 text-signal'
-            : 'text-ink-muted hover:text-ink'"
-          @click="setTab('clipboard')"
-        >
-          <ClipboardList class="w-4 h-4" />
-          Clipboard
-          <span
-            v-if="clips.length"
-            class="min-w-[16px] h-4 px-1 rounded-full bg-surface-elevated border border-border text-[9px] text-ink-secondary flex items-center justify-center"
-          >
-            {{ clips.length }}
-          </span>
-        </button>
-      </div>
-    </nav>
-
-    <!-- Upload Floating Button (Files tab only) -->
-    <UploadFab v-if="activeTab === 'files'" />
+  <div class="workspace" @dragover.prevent @drop.prevent="dropFiles">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Relay home"><img src="/relay-icon.svg" alt=""/><span>relay<span class="brand-dot">.</span></span></a>
+      <p class="eyebrow nav-label">YOUR WORKSPACE</p>
+      <span class="mobile-connection"><span :class="['status-dot',{online:connected}]"></span>{{ connected ? 'Connected' : 'Offline' }}</span>
+      <nav aria-label="Workspace">
+        <button :class="['nav-item',{active:activeTab==='files'}]" @click="activeTab='files'"><Files/> Files <span>{{ files.length }}</span></button>
+        <button :class="['nav-item',{active:activeTab==='clipboard'}]" @click="activeTab='clipboard'"><Clipboard/> Clipboard <span>{{ clips.length }}</span></button>
+      </nav>
+      <div class="sidebar-bottom"><div class="network-card"><span :class="['status-dot',{online:connected}]"></span><div><strong>{{ connected ? 'Connected locally' : 'Reconnecting…' }}</strong><small>Your files stay on your network</small></div></div><button class="device" @click="renameDevice"><Laptop/><span>{{ deviceName }}</span><Pencil/></button></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><span>Workspace <ChevronRight/> <strong>{{ activeTab==='files'?'Files':'Clipboard' }}</strong></span><span class="connection"><span :class="['status-dot',{online:connected}]"></span>{{ connected?'Live sync':'Offline' }}</span></header>
+      <main>
+        <section class="page-heading"><div><p class="eyebrow">{{ activeTab==='files'?'A PLACE FOR EVERYTHING':'BETWEEN YOUR DEVICES' }}</p><h1>{{ activeTab==='files'?'Your files':'Shared clipboard' }}</h1><p>{{ activeTab==='files'?'Browse, preview and edit. Everything, close at hand.':'Send a thought, a link or a snippet. Pick it up anywhere.' }}</p></div><button v-if="activeTab==='files'" class="primary" :disabled="!!uploadProgress" @click="picker.click()"><Upload/> Upload files</button></section>
+        <input ref="picker" type="file" multiple hidden @change="chooseFiles"/>
+        <div v-if="error" class="message error" role="alert"><span>{{ error }}</span><button aria-label="Dismiss error" @click="error=null"><X/></button></div>
+        <section v-if="manualCopy !== null" class="manual-copy"><label for="manual">Select this text and use your device’s Copy command</label><textarea id="manual" readonly :value="manualCopy" @focus="$event.target.select()"></textarea><button @click="manualCopy=null">Done</button></section>
+        <template v-if="activeTab==='files'">
+          <div class="toolbar files-toolbar"><div class="search"><Search/><input v-model="query" aria-label="Search files" placeholder="Search this folder…"/></div><select v-model="sort" aria-label="Sort files"><option value="name">Name A–Z</option><option value="date">Recently modified</option><option value="size">Largest first</option></select><div class="view-switch"><button :class="{chosen:!grid}" aria-label="List view" :aria-pressed="!grid" @click="grid=false"><List/></button><button :class="{chosen:grid}" aria-label="Grid view" :aria-pressed="grid" @click="grid=true"><LayoutGrid/></button></div></div>
+          <div class="folderbar"><nav class="breadcrumbs" aria-label="Folder path"><button @click="openFolder('')"><Folder/> Shared</button><template v-for="(part,i) in segments" :key="i"><ChevronRight/><button @click="openFolder(segments.slice(0,i+1).join('/'))">{{ part }}</button></template></nav><div class="actions"><button title="New folder" aria-label="New folder" @click="createFolder"><FolderPlus/></button><button title="Refresh" aria-label="Refresh files" :disabled="loading" @click="fetchFiles"><RefreshCw :class="{spin:loading}"/></button></div></div>
+          <div v-if="uploadProgress" class="upload-status" role="status"><div><Upload/><strong>{{ uploadProgress.name }}</strong><span>{{ uploadProgress.done+1 }} / {{ uploadProgress.total }}</span></div><progress max="100" :value="uploadProgress.percent"></progress></div>
+          <div v-if="loading && !files.length" class="empty" role="status"><RefreshCw class="spin"/><h2>Loading your files…</h2></div>
+          <div v-else-if="!visibleFiles.length" class="empty"><Folder/><h2>{{ query?'No matching files':'Make room for your next idea' }}</h2><p>{{ query?'Try a different file name.':'Drop files here or use Upload files to get started.' }}</p></div>
+          <section v-else :class="['file-list',{grid}]" aria-label="Files">
+            <div v-if="!grid" class="list-heading"><span>Name</span><span>Size</span><span>Modified</span><span>Actions</span></div>
+            <article v-for="file in visibleFiles" :key="file.path" class="file-row">
+              <button class="file-open" @click="open(file)"><span :class="['file-icon',file.is_dir?'folder':fileKind(file)]"><component :is="icon(file)"/></span><span class="file-label"><strong>{{ file.name }}</strong><small>{{ file.is_dir?'Folder':(file.name.split('.').pop().toUpperCase()+' file') }}<span v-if="!file.is_dir" class="mobile-file-size"> · {{ size(file.size_bytes) }}</span></small></span></button>
+              <span class="file-size">{{ file.is_dir?'—':size(file.size_bytes) }}</span><span class="file-date">{{ date(file.modified_at) }}</span>
+              <div class="actions"><button v-if="!file.is_dir" :aria-label="`Download ${file.name}`" title="Download" @click="downloadFile(file)"><Download/></button><button class="danger" :aria-label="`Delete ${file.name}`" title="Delete" @click="deleteFile(file)"><Trash2/></button></div>
+            </article>
+          </section>
+          <footer class="file-footer"><span>{{ visibleFiles.length }} {{ visibleFiles.length===1?'item':'items' }}</span><span>Drag & drop to upload · Click a file to preview</span></footer>
+        </template>
+        <template v-else>
+          <form class="composer" @submit.prevent="send"><label for="clip-draft">Share something</label><textarea ref="composerInput" id="clip-draft" rows="4" v-model="draft" :disabled="sending" placeholder="Paste a link, write a note, or share a code snippet…" @keydown.ctrl.enter.prevent="send" @keydown.meta.enter.prevent="send"></textarea><div><span>From {{ deviceName }} · Ctrl / ⌘ + Enter to send</span><button class="primary" :disabled="sending || !draft.trim()"><Send/>{{ sending?'Sending…':'Share text' }}</button></div></form>
+          <div class="toolbar clipboard-toolbar"><h2>Recent notes <span>{{ clips.length }}</span></h2><div class="search"><Search/><input v-model="query" placeholder="Search clipboard…" aria-label="Search clipboard"/></div><button aria-label="Refresh clipboard" @click="fetchClips"><RefreshCw/></button></div>
+          <div v-if="!visibleClips.length" class="empty"><Clipboard/><h2>{{ query?'No matching notes':'Your clipboard, in sync' }}</h2><p>Share text above to make it available on your devices.</p></div>
+          <section class="clip-grid" aria-label="Shared notes">
+            <ClipboardCard v-for="clip in visibleClips" :key="clip.id" :clip="clip" @copy="copy" @delete="removeClip" />
+          </section>
+        </template>
+      </main>
+    </div>
+    <div v-if="notice" class="toast" role="status"><Check/>{{ notice }}</div>
+    <dialog ref="viewer" class="viewer" aria-labelledby="preview-title" @cancel.prevent="closeViewer" @click="($event.target===viewer) && closeViewer()">
+      <template v-if="selected"><header><div><span class="file-icon"><component :is="icon(selected)"/></span><div><h2 id="preview-title">{{ selected.name }}</h2><small>{{ size(selected.size_bytes) }} · {{ kind==='text'?'Text editor':'Preview' }}{{ dirty?' · Unsaved changes':'' }}</small></div></div><button aria-label="Close preview" :disabled="saving" @click="closeViewer"><X/></button></header><div :class="['viewer-body', {'text-preview':kind==='text' && !busy} ]"><p v-if="busy" class="empty">Loading preview…</p><div v-if="previewError" class="message error" role="alert">{{ previewError }}</div><textarea v-if="kind==='text' && !busy && (!previewError || content || dirty)" v-model="content" :disabled="saving" class="editor" spellcheck="false" aria-label="File content" @keydown.ctrl.s.prevent="save" @keydown.meta.s.prevent="save"></textarea><img v-if="kind==='image' && mediaUrl" :src="mediaUrl" :alt="selected.name" @error="previewError='This image format cannot be previewed. Download it to open.'"/><video v-if="kind==='video' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></video><audio v-if="kind==='audio' && mediaUrl" :src="mediaUrl" controls @error="previewError='Your browser cannot play this format. Download it to open.'"></audio><div v-if="kind==='unsupported'" class="empty"><FileText/><h2>Open with your favorite app</h2><p>Download this file to view or edit it on your device.</p></div></div><footer><button @click="downloadFile(selected)"><Download/> Download</button><span v-if="kind==='text'">UTF-8 · Up to 1 MB</span><button v-if="kind==='text'" class="primary" :disabled="busy || saving || !dirty" @click="save"><Save/>{{ saving?'Saving…':'Save changes' }}</button></footer></template>
+    </dialog>
   </div>
 </template>
-
-<script setup>
-import { computed, onMounted } from 'vue';
-import {
-  FolderClosed,
-  FolderOpen,
-  FolderPlus,
-  RefreshCw,
-  AlertCircle,
-  ClipboardList,
-  Copy,
-  Trash2,
-  Smartphone,
-  Pencil,
-  UserRound,
-} from 'lucide-vue-next';
-import BreadcrumbBar from './components/BreadcrumbBar.vue';
-import FileRow from './components/FileRow.vue';
-import UploadFab from './components/UploadFab.vue';
-import ClipComposer from './components/ClipComposer.vue';
-import {
-  files,
-  clips,
-  activeTab,
-  loading,
-  error,
-  connected,
-  init,
-  fetchFiles,
-  createFolder,
-  deleteClip,
-  copyText,
-  deviceLabel,
-  setDeviceLabel,
-} from './relay';
-
-const deviceName = computed(() => deviceLabel());
-
-function setTab(tab) {
-  activeTab.value = tab;
-}
-
-function changeDeviceName() {
-  const name = window.prompt('Device name shown to others', deviceName.value);
-  if (name) {
-    setDeviceLabel(name);
-    deviceName.value = deviceLabel();
-  }
-}
-
-function timeAgo(iso) {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} hr ago`;
-  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
-onMounted(() => {
-  init();
-});
-</script>

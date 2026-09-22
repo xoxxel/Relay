@@ -1,3 +1,4 @@
+import { copyText } from './clipboard';
 import { ref } from 'vue';
 
 const files = ref([]);
@@ -11,12 +12,14 @@ const uploadProgress = ref(null);
 
 let ws = null;
 let wsRetry = null;
+let fileRequest = 0;
 
 function statusOk(res) {
   return res.ok;
 }
 
 async function fetchFiles() {
+  const ticket = ++fileRequest;
   loading.value = true;
   error.value = null;
   try {
@@ -24,13 +27,15 @@ async function fetchFiles() {
     const res = await fetch(`/api/files${q}`);
     if (!statusOk(res)) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    if (ticket !== fileRequest) return;
     files.value = Array.isArray(data) ? data : [];
     connected.value = true;
   } catch (err) {
+    if (ticket !== fileRequest) return;
     error.value = 'Failed to connect to Relay server: ' + (err.message || err);
     connected.value = false;
   } finally {
-    loading.value = false;
+    if (ticket === fileRequest) loading.value = false;
   }
 }
 
@@ -82,6 +87,8 @@ async function createFolder() {
 }
 
 function uploadFiles(fileList) {
+  if (uploadProgress.value) return;
+  const destination = currentPath.value;
   const selected = Array.from(fileList || []);
   if (!selected.length) return;
   uploadProgress.value = {
@@ -106,7 +113,7 @@ function uploadFiles(fileList) {
     };
 
     const form = new FormData();
-    form.append('path', currentPath.value);
+    form.append('path', destination);
     form.append('file', file, file.name);
 
     try {
@@ -140,11 +147,12 @@ function uploadFiles(fileList) {
 async function fetchClips() {
   try {
     const res = await fetch('/api/clips');
+    if (!statusOk(res)) throw new Error(`HTTP ${res.status}`);
     if (statusOk(res)) {
       const data = await res.json();
       clips.value = Array.isArray(data) ? data : [];
     }
-  } catch (_) {}
+  } catch (err) { error.value = 'Could not load clipboard. Please retry.'; }
 }
 
 async function sendClip(content) {
@@ -164,15 +172,8 @@ async function sendClip(content) {
 
 async function deleteClip(id) {
   const res = await fetch(`/api/clips/${id}`, { method: 'DELETE' });
-  if (statusOk(res)) {
-    clips.value = clips.value.filter((c) => c.id !== id);
-  }
-}
-
-function copyText(text) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
-  }
+  if (!statusOk(res)) throw new Error('Could not delete clipboard item.');
+  clips.value = clips.value.filter((c) => c.id !== id);
 }
 
 function deviceLabel() {
@@ -196,6 +197,8 @@ function connectWs() {
   try {
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
+      fetchFiles();
+      fetchClips();
       connected.value = true;
     };
     ws.onmessage = (event) => {
@@ -217,7 +220,7 @@ function handleWsMessage(msg) {
     if (!exists) clips.value.unshift(msg.data);
   } else if (msg.type === 'clip_removed') {
     clips.value = clips.value.filter((c) => c.id !== msg.data.id);
-  } else if (msg.type === 'file_added' || msg.type === 'file_removed') {
+  } else if (msg.type === 'file_added' || msg.type === 'file_removed' || msg.type === 'file_updated') {
     const path = msg.data.path || '';
     const dir = currentPath.value;
     const inCurrent = !dir || path.startsWith(dir + '/');

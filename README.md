@@ -211,3 +211,14 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [**Release
 ## License
 
 Distributed under the [MIT License](LICENSE).
+
+### Web workspace
+
+Open `http://127.0.0.1:8420/` on the host computer (also useful when a system VPN/proxy is enabled), or the displayed LAN URL on another device.
+
+- Search, sort, switch list/grid views, and drag files into the current folder to upload.
+- Click an image, audio, or video file to preview it (up to 25 MB; playback depends on browser codec support).
+- Click a UTF-8 text/code file to edit it (up to 1 MB). Save with the button or Ctrl/⌘+S. Conflicting editor saves are rejected so you can recover your edits. Other formats can be downloaded and opened in a suitable app.
+- Clipboard copying uses the secure Clipboard API where available, a fallback for HTTP LAN pages, and manual selection if the browser blocks both. Success is displayed only after the copy operation succeeds.
+
+For isolated UI review, run `cargo run --manifest-path src-tauri/Cargo.toml --example web_preview -- /tmp/relay-preview 19421` after building the web client, then open `http://127.0.0.1:19421/`. This uses scratch files and a separate preview database. Tests for this workspace: `node --test web-client/src/clipboard.test.js` and `cargo test --manifest-path src-tauri/Cargo.toml --lib --test text_editor_test`.

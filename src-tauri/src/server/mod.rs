@@ -39,6 +39,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/files", get(routes_files::list_files).delete(routes_files::delete_file))
         .route("/files/upload", post(routes_files::upload_files))
         .route("/files/download", get(routes_files::download_file))
+        .route("/files/text", get(routes_files::read_text).put(routes_files::save_text).layer(DefaultBodyLimit::max(16 * 1024 * 1024)))
         .route("/files/mkdir", post(routes_files::make_directory));
 
     let clip_routes = Router::new()

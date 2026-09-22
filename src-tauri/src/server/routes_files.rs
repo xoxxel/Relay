@@ -337,10 +337,96 @@ pub async fn delete_file(
     Ok(StatusCode::OK)
 }
 
+const MAX_TEXT_BYTES: u64 = 1024 * 1024;
+
+#[derive(Deserialize)]
+pub struct EditTextRequest {
+    pub path: String,
+    pub content: String,
+    pub original: String,
+}
+
+fn read_editable_text(path: &Path) -> Result<String, StatusCode> {
+    let metadata = fs::metadata(path).map_err(|_| StatusCode::NOT_FOUND)?;
+    if !metadata.is_file() { return Err(StatusCode::BAD_REQUEST); }
+    if metadata.len() > MAX_TEXT_BYTES { return Err(StatusCode::PAYLOAD_TOO_LARGE); }
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    fs::File::open(path).map_err(|_| StatusCode::FORBIDDEN)?
+        .take(MAX_TEXT_BYTES + 1).read_to_end(&mut bytes)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if bytes.len() as u64 > MAX_TEXT_BYTES { return Err(StatusCode::PAYLOAD_TOO_LARGE); }
+    let text = String::from_utf8(bytes).map_err(|_| StatusCode::UNSUPPORTED_MEDIA_TYPE)?;
+    if text.contains('\0') { return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE); }
+    Ok(text)
+}
+
+pub async fn read_text(
+    State(state): State<AppState>, Query(params): Query<FileActionQuery>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let inner = state.inner.lock().await;
+    let path = safe_join(&inner.shared_folder, &params.path)?;
+    Ok(Json(json!({ "content": read_editable_text(&path)? })))
+}
+
+fn replace_text(base: &Path, payload: &EditTextRequest) -> Result<(), StatusCode> {
+    if payload.content.len() as u64 > MAX_TEXT_BYTES { return Err(StatusCode::PAYLOAD_TOO_LARGE); }
+    if payload.content.contains('\0') { return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE); }
+    let path = safe_join(base, &payload.path)?.canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
+    if !path.starts_with(base.canonicalize().map_err(|_| StatusCode::NOT_FOUND)?) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    if read_editable_text(&path)? != payload.original { return Err(StatusCode::CONFLICT); }
+    let temp = path.with_file_name(format!(".relay-edit-{}", Uuid::new_v4()));
+    let result = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&temp)?;
+        file.set_permissions(fs::metadata(&path)?.permissions())?;
+        file.write_all(payload.content.as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&temp, &path)
+    })();
+    if result.is_err() { let _ = fs::remove_file(&temp); }
+    result.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub async fn save_text(
+    State(state): State<AppState>, Json(payload): Json<EditTextRequest>,
+) -> Result<StatusCode, StatusCode> {
+    // Serialize editor saves so two devices cannot both pass the original-content check.
+    let inner = state.inner.lock().await;
+    replace_text(&inner.shared_folder, &payload)?;
+    let _ = state.broadcast_tx.send(json!({ "type": "file_updated", "data": { "path": payload.path } }).to_string());
+    Ok(StatusCode::NO_CONTENT)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn text_edit_is_atomic_and_rejects_conflicts_and_binary() {
+        let base = std::env::temp_dir().join(format!("relay-edit-test-{}", Uuid::new_v4()));
+        fs::create_dir_all(&base).unwrap();
+        let path = base.join("note.txt");
+        fs::write(&path, "hello فارسی").unwrap();
+        let edit = EditTextRequest { path: "note.txt".into(), original: "hello فارسی".into(), content: "updated متن".into() };
+        replace_text(&base, &edit).unwrap();
+        assert_eq!(read_editable_text(&path).unwrap(), "updated متن");
+        assert_eq!(replace_text(&base, &edit), Err(StatusCode::CONFLICT));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "updated متن");
+        fs::write(base.join("binary"), b"abc\0def").unwrap();
+        assert_eq!(read_editable_text(&base.join("binary")), Err(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+        fs::write(base.join("large.txt"), vec![b'a'; MAX_TEXT_BYTES as usize + 1]).unwrap();
+        assert_eq!(read_editable_text(&base.join("large.txt")), Err(StatusCode::PAYLOAD_TOO_LARGE));
+        assert_eq!(replace_text(&base, &EditTextRequest { path: "../escape".into(), original: "".into(), content: "no".into() }), Err(StatusCode::FORBIDDEN));
+        #[cfg(unix)] {
+            std::os::unix::fs::symlink("/etc/hosts", base.join("outside.txt")).unwrap();
+            assert_eq!(replace_text(&base, &EditTextRequest { path: "outside.txt".into(), original: "".into(), content: "no".into() }), Err(StatusCode::FORBIDDEN));
+        }
+        fs::remove_dir_all(base).unwrap();
+    }
 
     #[test]
     fn test_safe_join_normal() {

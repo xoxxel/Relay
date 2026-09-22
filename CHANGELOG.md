@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] — 2026-09-22
+
+### Added
+
+- Text file editor in the web client with read, edit, save, and cancel actions.
+- Optimistic concurrency checks that prevent overwriting a file changed by another client.
+- UTF-8 validation for text editing, with binary files rejected from the editor.
+- Clipboard copy support using the secure Clipboard API with a browser-compatible fallback.
+- Backend integration tests for text routes, conflict handling, path traversal protection, and binary-file rejection.
+- Frontend tests for clipboard success, fallback, and failure behavior.
+
+### Fixed
+
+- Safer text-file handling by rejecting unsupported binary content and unsafe paths before access.
+
+---
+
 ## [0.1.0] — 2026-09-06
 
 ### Added
@@ -68,4 +85,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.2.0]: https://github.com/xoxxel/Relay/releases/tag/v0.2.0
 [0.1.0]: https://github.com/xoxxel/Relay/releases/tag/v0.1.0
